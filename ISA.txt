@@ -1,0 +1,45 @@
+TauriISA v0.1:
+Integer instructions, floating point instructions, memory instructions
+16x16 multiplier (1 DSP)
+Integer instructions:
+add, 
+sub,
+and,
+xor,
+or,
+max,
+maxu,
+min,
+minu,
+lsl,
+lsr,
+asr,
+beq,
+bne,
+blt,
+bge,
+bltu,
+bgeu,
+jal,
+jalr
+Floating point instructions:
+fadd24
+fsub24
+fmul24
+fmax24
+fmin24
+fabs24
+fneg24
+frsqrt7
+Memory instructions:
+lb // load byte
+lh // load two bytes
+lw // load word
+fl24 // load 4 bytes, and take away the last 8 bits of precision
+tex2d // 2d texture lookup, takes in two coordinates between 0 and 1
+tex3d // 3d texture lookup, takes in three coordinates between 0 and 1 (opengl defines behaviour for outside these ranges)
+SFU:
+fcos24
+fsin24
+ffloor24 (returns integer)
+frsqrt24
