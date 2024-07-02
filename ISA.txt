@@ -30,16 +30,26 @@ fmax24
 fmin24
 fabs24
 fneg24
-frsqrt7
+frsqrt7 (7-bit accurate estimate)
 Memory instructions:
 lb // load byte
 lh // load two bytes
 lw // load word
+sb // load byte
+sh // load two bytes
+sw // load word
 fl24 // load 4 bytes, and take away the last 8 bits of precision
+fs24 // store 4 bytes, and zero the missing 8 bits of precision
 tex2d // 2d texture lookup, takes in two coordinates between 0 and 1
 tex3d // 3d texture lookup, takes in three coordinates between 0 and 1 (opengl defines behaviour for outside these ranges)
 SFU:
 fcos24
 fsin24
-ffloor24 (returns integer)
+ffloor24
 frsqrt24
+fpow24
+
+wire [23:0] operand_a;
+operand_a[14:0] = 'fractional part with implicit one'
+
+wire [15:0] full_fraction = operand_a[22:15] ==0 ? 16'h0000 : {1'b1, operand_a[14:0]};
