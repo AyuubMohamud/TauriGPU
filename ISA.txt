@@ -20,8 +20,8 @@ blt,
 bge,
 bltu,
 bgeu,
-jal,
-jalr
+call,
+ret
 Floating point instructions:
 fadd24
 fsub24
