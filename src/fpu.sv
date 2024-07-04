@@ -1,12 +1,12 @@
 module fpu #(
-    parameter ADDR_WIDTH = 32, 
+    parameter ADDR_WIDTH = 32,
               DATA_WIDTH = 32,
               WIDTH = 32
 )(
     input   wire logic [WIDTH - 1:0] a,
     input   wire logic [WIDTH - 1:0] b,
     input   wire logic [2:0]         FPUctrl,
-    output  wire logic [WIDTH - 1:0] FPUout
+    output  wire logic [23:0] FPUout
 );
 
     logic [WIDTH - 1:0] result_std;
@@ -38,6 +38,16 @@ module fpu #(
         .result(result_neg)
     );
 
+    /*
+    Notes:
+    - No need rounding, we're not doing a fully IEEE 754 compliant implementation
+    - Need to:
+        - Store implicit 1
+        - Complete fp_std
+        - Implement fp_mul
+        - Just cut out the last 8 bits for everything
+    */
+
     always_comb begin
         case(FPUctrl)
             3'b000, 3'b001, 3'b011, 3'b100: result = result_std;
@@ -48,6 +58,6 @@ module fpu #(
         endcase
     end
 
-    assign FPUout = result;
+    assign FPUout = result[31:24];
 
 endmodule
