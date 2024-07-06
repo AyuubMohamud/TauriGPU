@@ -1,18 +1,17 @@
 module fpu #(
-    parameter ADDR_WIDTH = 32,
-              DATA_WIDTH = 32,
-              WIDTH = 32
+    parameter WIDTH = 24
 )(
     input   wire logic [WIDTH - 1:0] a,
     input   wire logic [WIDTH - 1:0] b,
     input   wire logic [2:0]         FPUctrl,
-    output  wire logic [23:0] FPUout
+    output  wire logic [WIDTH - 1:0] FPUout
 );
 
     logic [WIDTH - 1:0] result_std;
     logic [WIDTH - 1:0] result_mul;
     logic [WIDTH - 1:0] result_abs;
     logic [WIDTH - 1:0] result_neg;
+    logic [WIDTH - 1:0] result;
 
     // Floating-point standard operations (addition, subtraction, max, min)
     fp_std fp_std_inst (
@@ -58,6 +57,6 @@ module fpu #(
         endcase
     end
 
-    assign FPUout = result[31:24];
+    assign FPUout = result;
 
 endmodule
