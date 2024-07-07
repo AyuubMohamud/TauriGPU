@@ -13,7 +13,7 @@ module fp_std #(
 
     // Extract fields from input
     logic sign1 = a[23];
-    logic sign2 = b[23];
+    logic sign2 = op[2] == 1 ? ~b[23] : b[23];
     logic [7:0] exp1 = a[22:15];
     logic [7:0] exp2 = b[22:15];
 
@@ -106,14 +106,14 @@ module fp_std #(
         if (exp_diff > 15) begin
             add_sub_result = a_is_bigger ? a : b;
         end else begin
-            add_sub_result = (sign1 == sign2) ? {add_result_exponent, add_result_mantissa[16] ? add_result_mantissa[15:1] : add_result_mantissa[14:0]} : {sub_result_exponent, new_sub_result_mantissa[15:1]};
+            add_sub_result = (sign1 == sign2) ? {sign1, add_result_exponent, add_result_mantissa[16] ? add_result_mantissa[15:1] : add_result_mantissa[14:0]} : {max_sign, sub_result_exponent, new_sub_result_mantissa[15:1]};
         end
 
         case(op)
             2'b00: result = add_sub_result;
             2'b01: result = max_result;
             2'b10: result = min_result;
-            default: result = 24'b0;     
+            default: result = 24'b0;
         endcase
 
     end
