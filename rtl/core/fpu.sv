@@ -3,7 +3,7 @@ module fpu #(
 )(
     input   wire logic [WIDTH - 1:0] a,
     input   wire logic [WIDTH - 1:0] b,
-    input   wire logic [2:0]         FPUctrl,
+    input   wire logic [3:0]         FPUctrl,
     output  wire logic [WIDTH - 1:0] FPUout
 );
 
@@ -11,13 +11,15 @@ module fpu #(
     logic [WIDTH - 1:0] result_mul;
     logic [WIDTH - 1:0] result_abs;
     logic [WIDTH - 1:0] result_neg;
+    logic [WIDTH - 1:0] result_floor;
+    logic [WIDTH - 1:0] result_ceil;
     logic [WIDTH - 1:0] result;
 
     // Floating-point standard operations (addition, subtraction, max, min)
     fp_std fp_std_inst (
         .a(a),
         .b(b),
-        .op(FPUctrl[2:0]),
+        .op(FPUctrl[3:0]),
         .result(result_std)
     );
 
@@ -37,6 +39,16 @@ module fpu #(
         .result(result_neg)
     );
 
+    fp_floor fp_floor_inst (
+        .a(a),
+        .result(result_floor)
+    );
+
+    fp_ceil fp_ceil_inst (
+        .a(a),
+        .result(result_ceil)
+    );
+
     /*
     Notes:
     - No need rounding, we're not doing a fully IEEE 754 compliant implementation
@@ -49,10 +61,12 @@ module fpu #(
 
     always_comb begin
         case(FPUctrl)
-            3'b000, 3'b001, 3'b011, 3'b100: result = result_std;
-            3'b010: result = result_mul; 
-            3'b101: result = result_abs;
-            3'b110: result = result_neg;
+            4'b0000, 4'b0100, 4'b0001, 4'b0010: result = result_std;
+            4'b0011: result = result_mul;
+            4'b0101: result = result_abs;
+            4'b0110: result = result_neg;
+            4'b1000: result = result_floor;
+            4'b1001: result = result_ceil;
             default: result = 0;     
         endcase
     end

@@ -3,7 +3,7 @@ module fp_std #(
 )(
     input  wire [WIDTH - 1:0] a,
     input  wire [WIDTH - 1:0] b,
-    input  wire [2:0]  op,
+    input  wire [3:0]  op,
     output logic [WIDTH - 1:0] result
 );
 
