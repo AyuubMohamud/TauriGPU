@@ -17,7 +17,8 @@ module fp_std #(
     logic [7:0] exp1 = a[22:15];
     logic [7:0] exp2 = b[22:15];
 
-    logic [7:0] new_exp_diff;
+    logic [7:0] new_exp_diff; // no idea what is causing it
+    wire [4:0] new_exp_diff_w = new_exp_diff[3:0] + 1;
 
     logic mantissa_top_bit_1 = exp1==0 ? 1'b0 : 1'b1;
     logic mantissa_top_bit_2 = exp2==0 ? 1'b0 : 1'b1;
@@ -25,12 +26,13 @@ module fp_std #(
     logic [15:0] mant2 = {mantissa_top_bit_2, b[14:0]}; 
 
     wire a_is_bigger = exp1 > exp2 || (exp1 == exp2 && mant1 > mant2);
-    wire [7:0] exp_diff = a_is_bigger ? exp1 - exp2 : exp2 - exp1;
+    // wire [7:0] exp_diff = a_is_bigger ? exp1 - exp2 : exp2 - exp1;
 
     wire [15:0] max_mantissa = a_is_bigger ? mant1 : mant2;
     wire [7:0] max_exponent = a_is_bigger ? exp1 : exp2;
     wire [15:0] min_mantissa = a_is_bigger ? mant2 : mant1;
     wire [7:0] min_exponent = a_is_bigger ? exp2 : exp1;
+    wire [7:0] exp_diff = max_exponent - min_exponent;
 
     wire [15:0] shift_mantissa = min_mantissa >> exp_diff[3:0];
 
@@ -45,13 +47,10 @@ module fp_std #(
 
     always_comb begin
 
-        // 1. If both inputs are zero, the sum is zero
+        max_result = 24'b0;
+        min_result = 24'b0;
 
-        if (exp1 == 0 && exp2 == 0) begin
-            add_sub_result = 24'b0;
-            max_result = 24'b0;
-            min_result = 24'b0;
-        end
+        // 1. If both inputs are zero, the sum is zero
 
         // 2. Determine which input is bigger, which smaller (absolute value) by first comparing the exponents, then the mantissas if necessary.
 
@@ -66,7 +65,7 @@ module fp_std #(
             min_result = a;
         end else if (sign1&sign2) begin
             max_result = a_is_bigger ? b : a;
-            min_result =  a_is_bigger ? a : b;
+            min_result = a_is_bigger ? a : b;
         end
         
         // 3. Determine the difference in the exponents and shift the smaller input mantissa right by the difference. 
@@ -101,7 +100,7 @@ module fp_std #(
             default: new_exp_diff = 0;
         endcase
 
-        new_sub_result_mantissa = sub_result_mantissa << new_exp_diff + 1;
+        new_sub_result_mantissa = sub_result_mantissa << new_exp_diff_w;
 
         if (exp_diff > 15) begin
             add_sub_result = a_is_bigger ? a : b;
@@ -109,8 +108,8 @@ module fp_std #(
             add_sub_result = (sign1 == sign2) ? {sign1, add_result_exponent, add_result_mantissa[16] ? add_result_mantissa[15:1] : add_result_mantissa[14:0]} : {max_sign, sub_result_exponent, new_sub_result_mantissa[15:1]};
         end
 
-        case(op)
-            2'b00: result = add_sub_result;
+        case(op[1:0])
+            2'b00: result = exp1 == 0 && exp2 == 0 ? 24'b0 : add_sub_result;
             2'b01: result = max_result;
             2'b10: result = min_result;
             default: result = 24'b0;
