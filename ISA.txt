@@ -2,7 +2,7 @@ TauriISA v0.1:
 Integer instructions, floating point instructions, memory instructions
 16x16 multiplier (1 DSP)
 Integer instructions:
-add, 
+add,
 sub,
 and,
 xor,
@@ -20,8 +20,7 @@ blt,
 bge,
 bltu,
 bgeu,
-call,
-ret
+converge
 Floating point instructions:
 fadd24
 fsub24
@@ -30,14 +29,15 @@ fmax24
 fmin24
 fabs24
 fneg24
-frsqrt7 (7-bit accurate estimate)
+ffloor24
+fceil24
 Memory instructions:
 lb // load byte
 lh // load two bytes
 lw // load word
-sb // load byte
-sh // load two bytes
-sw // load word
+sb // store byte
+sh // store two bytes
+sw // store word
 fl24 // load 4 bytes, and take away the last 8 bits of precision
 fs24 // store 4 bytes, and zero the missing 8 bits of precision
 tex2d // 2d texture lookup, takes in two coordinates between 0 and 1
@@ -45,11 +45,49 @@ tex3d // 3d texture lookup, takes in three coordinates between 0 and 1 (opengl d
 SFU:
 fcos24
 fsin24
-ffloor24
 frsqrt24
-fpow24
+frcp24
+fbxp24
+fblg24
 
-wire [23:0] operand_a;
-operand_a[14:0] = 'fractional part with implicit one'
+Integer instructions:
+P = opcode field bits
+X = dest register field bits
+I = immediate bit (high on immediate instruction)
+S = source register field bits (from bank A)
+O = operand 2 field bits -> 11 bit signed immediate, second source register (from bank B)
+OOOOOOOOOOOSSSSSIXXXXXXPPPPPPP00
 
-wire [15:0] full_fraction = operand_a[22:15] ==0 ? 16'h0000 : {1'b1, operand_a[14:0]};
+Floating point instructions:
+P = opcode field bits
+X = dest register field bits
+I = immediate bit (high on immediate instruction)
+S = source register field bits (from bank A)
+O = operand 2 field bits -> second source register (from bank B for integer register or a floating point register from either bank)
+Z = don't care
+OOOOOOOOOOOSSSSSIXXXXXXZZZPPPP01
+
+Memory instructions:
+P = opcode field bits
+X = dest register field bits
+I = immediate bit (high on immediate instruction)
+S = source register field bits (from bank A)
+O = operand 2 field bits -> 11 bit signed immediate, second source register (from bank B)
+Z = don't care
+OOOOOOOOOOOSSSSSIXXXXXXZZZPPPP10
+
+SFU instructions:
+P = opcode field bits
+X = dest register field bits
+I = immediate bit (high on immediate instruction)
+S = source register field bits
+Z = don't care
+ZZZZZZZZZZSSSSSSIXXXXXXZZZPPPP11
+
+
+Bank A    Bank B
+Bank = 32 registers
+You can read from Bank A
+You can read from Bank B
+In one cycle
+But you can never read twice from the same one
