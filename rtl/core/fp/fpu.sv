@@ -13,6 +13,7 @@ module fpu #(
     logic [WIDTH - 1:0] result_neg;
     logic [WIDTH - 1:0] result_floor;
     logic [WIDTH - 1:0] result_ceil;
+    logic [WIDTH - 1:0] result_sign;
     logic [WIDTH - 1:0] result;
 
     // Floating-point standard operations (addition, subtraction, max, min)
@@ -49,6 +50,11 @@ module fpu #(
         .result(result_ceil)
     );
 
+    fp_sign fp_sign_inst (
+        .a(a),
+        .result(result_sign)
+    );
+
     /*
     Notes:
     - No need rounding, we're not doing a fully IEEE 754 compliant implementation
@@ -67,6 +73,7 @@ module fpu #(
             4'b0110: result = result_neg;
             4'b1000: result = result_floor;
             4'b1001: result = result_ceil;
+            4'b1010: result = result_sign;
             default: result = 0;     
         endcase
     end

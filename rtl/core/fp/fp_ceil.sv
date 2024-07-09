@@ -5,7 +5,6 @@ module fp_ceil #(
     output wire logic [WIDTH - 1:0] result
 );
 
-    
 
 
 endmodule
