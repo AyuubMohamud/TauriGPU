@@ -4,6 +4,9 @@
 July 3, 2024
 [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build/releases/tag/2024-07-03)
 
+July 9, 2024
+4 Shader Execution Units (SEUs) - each SEU has 4 ALUs, 4 FPUs, 1 SFU, 1 TMU, 1 instruction cache, 1 control unit
+
 ### Notes
 
 Read Raspberry Pi's GPU driver documentation
@@ -14,3 +17,4 @@ Goal 2: Run Doom (classic) on Linux
 Tiny-GPU + rasteriser + texture unit + fp16 + 32-bit integers
 
 ISA: Cutdown RISC-V, need (add, sub, mul, reciprocal sqrt, sin, cos)
+

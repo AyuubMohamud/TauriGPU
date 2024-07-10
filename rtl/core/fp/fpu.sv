@@ -1,10 +1,12 @@
 module fpu #(
     parameter WIDTH = 24
 )(
+    input   logic clk,
     input   wire logic [WIDTH - 1:0] a,
     input   wire logic [WIDTH - 1:0] b,
-    input   wire logic [3:0]         FPUctrl,
-    output  wire logic [WIDTH - 1:0] FPUout
+    input   wire logic [3:0]         opcode,
+
+    output  wire logic [WIDTH - 1:0] result
 );
 
     logic [WIDTH - 1:0] result_std;
@@ -14,17 +16,23 @@ module fpu #(
     logic [WIDTH - 1:0] result_floor;
     logic [WIDTH - 1:0] result_ceil;
     logic [WIDTH - 1:0] result_sign;
-    logic [WIDTH - 1:0] result;
+
+    /* FP pipelines
+        1. Add line: Std, Floor, Ceil  
+        2. Mul line: Mul
+        3. Misc line: Abs, Neg, Sign
+    */
 
     // Floating-point standard operations (addition, subtraction, max, min)
     fp_std fp_std_inst (
         .a(a),
         .b(b),
-        .op(FPUctrl[3:0]),
+        .op(opcode[3:0]),
         .result(result_std)
     );
 
     fp_mul fp_mul_inst (
+        .clk(clk),
         .a(a),
         .b(b),
         .result(result_mul)
@@ -55,18 +63,8 @@ module fpu #(
         .result(result_sign)
     );
 
-    /*
-    Notes:
-    - No need rounding, we're not doing a fully IEEE 754 compliant implementation
-    - Need to:
-        - Store implicit 1
-        - Complete fp_std
-        - Implement fp_mul
-        - Just cut out the last 8 bits for everything
-    */
-
     always_comb begin
-        case(FPUctrl)
+        case(opcode)
             4'b0000, 4'b0100, 4'b0001, 4'b0010: result = result_std;
             4'b0011: result = result_mul;
             4'b0101: result = result_abs;
@@ -77,7 +75,5 @@ module fpu #(
             default: result = 0;     
         endcase
     end
-
-    assign FPUout = result;
 
 endmodule
