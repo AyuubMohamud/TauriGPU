@@ -6,4 +6,5 @@ module fp_abs #(
 );
     // Extract the sign bit and make the value positive
     assign result = {1'b0, a[WIDTH - 2:0]};
+    
 endmodule

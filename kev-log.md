@@ -1,5 +1,10 @@
 # Kevin's Logbook
 
+### Tasks at hand
+- Pipeline add stage
+- Finish decode (+ fpu hazard unit)
+- Look at rastericer
+
 ### Timelog
 July 3, 2024
 [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build/releases/tag/2024-07-03)
@@ -17,4 +22,8 @@ Goal 2: Run Doom (classic) on Linux
 Tiny-GPU + rasteriser + texture unit + fp16 + 32-bit integers
 
 ISA: Cutdown RISC-V, need (add, sub, mul, reciprocal sqrt, sin, cos)
+
+
+Memory and SFU - 4 calls
+ALU and FPU - can just read as long as there are no hazards
 

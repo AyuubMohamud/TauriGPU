@@ -7,9 +7,11 @@ module control_unit #(
     parameter SFU_WIDTH = 24
 )(
     input logic clk_i,
-    input logic [WIDTH-1:0] instr_i,
+    input logic rst_i,
+    input logic [WIDTH-1:0] instr_i, // icache controller
+    input logic valid_i, // icache controller
 
-    output logic stall_o,
+    output logic stall_o, // icache controller
     output logic flush_o,
 
     // ALU control signals
@@ -50,9 +52,106 @@ module control_unit #(
 
 );
 
+    wire sfifo_full;
+    wire sfifo_empty;
+    wire [WIDTH-1:0] sfifo_data;
+    wire sfifo_read;
+
+    sfifo2 #(
+        .DW(WIDTH),
+        .FW(16)
+    ) sfifo_inst (
+        .i_clk(clk_i),
+        .i_reset(rst_i),
+        .i_wr_en(valid_i && ~sfifo_full),
+        .i_wr_data(instr_i),
+        .o_full(sfifo_full),
+        .i_rd(sfifo_read),
+        .o_rd_data(sfifo_data),
+        .o_empty(sfifo_empty)
+    );
+
+    assign stall_o = sfifo_full;
+
+    logic [1:0] instr_type = instr_i[1:0];
+
+    localparam IDLE = 2'b00; // ALU and FPU are idle
+    localparam MEM = 2'b10;
+    localparam SFU = 2'b11;
+
+    reg [1:0] control_state = IDLE;
+
+    logic [1:0] counter = 2'b00;
+
+    // Bit fields
+
+    assign source_reg_b = instr_i[31:19];
+    assign source_reg_a = instr_i[18:14];
+    assign immediate = instr_i[15];
+    assign dest_reg = instr_i[14:9];
+    assign opcode = instr_i[8:2];
+    assign instr_type = instr_i[1:0];
+
+    // Hazard unit
+
     
 
+    /*
+        IDLE state
+            servers all ALU and FPU instructions
+            as long as the instructions don't have any hazards
+            they are read and dispatched to the respective units
 
+            however, if the instruction is a memory instruction
+            it transitions to the MEM state and does not read from the FIFO
+
+            same for SFU, but transitions to SFU state
+
+        MEM state
+            serves memory instructions
+            dispatches instruction 4 different times for each 4 register file (SEU)
+            wait until the dcache is finished for all 4 register files
+            then transition to IDLE state
+
+        SFU state
+            serves SFU instructions
+            dispatches instruction 4 different times for each 4 register file (SEU)
+            wait until the SFU is finished for all 4 register files
+            then transition to IDLE state
+
+        Counter
+            when the counter reaches 3, and either the dcache or the SFU raises
+            its done signal (increments the counter and wraps around to 0), 
+            the control unit transitions to the IDLE state
+            and reads from the FIFO
+    */
+
+    always_ff @(posedge clk_i) begin
+        if (rst_i) begin
+            control_state <= IDLE;
+        end else begin
+            case (control_state)
+                IDLE: begin
+                    if (instr_type == 2'b00) begin
+                        control_state <= IDLE;
+                    end else if (instr_type == 2'b01) begin
+                        control_state <= MEM;
+                    end else if (instr_type == 2'b10) begin
+                        control_state <= SFU;
+                    end
+                end
+                MEM: begin
+                    control_state <= IDLE;
+                end
+                SFU: begin
+                    control_state <= IDLE;
+                end
+            endcase
+        end
+    end
+
+    // Branch logic
 
     
+
 endmodule
