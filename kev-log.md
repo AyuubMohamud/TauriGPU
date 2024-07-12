@@ -5,6 +5,8 @@
 - Finish decode (+ fpu hazard unit)
 - Look at rastericer
 
+Note: Finish the pipeline add stage and see how many ff chains i need, likely (3) which is one more than the ALU side, so yeah...
+
 ### Timelog
 July 3, 2024
 [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build/releases/tag/2024-07-03)
