@@ -17,7 +17,7 @@ module fp_std #(
     logic [7:0] exp1 = a[22:15];
     logic [7:0] exp2 = b[22:15];
 
-    logic [7:0] new_exp_diff; // no idea what is causing it
+    logic [7:0] new_exp_diff;
     wire [4:0] new_exp_diff_w = new_exp_diff[3:0] + 1;
 
     logic mantissa_top_bit_1 = exp1==0 ? 1'b0 : 1'b1;
@@ -26,7 +26,6 @@ module fp_std #(
     logic [15:0] mant2 = {mantissa_top_bit_2, b[14:0]}; 
 
     wire a_is_bigger = exp1 > exp2 || (exp1 == exp2 && mant1 > mant2);
-    // wire [7:0] exp_diff = a_is_bigger ? exp1 - exp2 : exp2 - exp1;
 
     wire [15:0] max_mantissa = a_is_bigger ? mant1 : mant2;
     wire [7:0] max_exponent = a_is_bigger ? exp1 : exp2;

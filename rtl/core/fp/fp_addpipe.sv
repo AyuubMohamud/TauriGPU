@@ -19,18 +19,48 @@ module fp_addpipe #(
     reg [WIDTH - 1:0] std_result_stage1_reg;
     reg [WIDTH - 1:0] floor_result_reg, ceil_result_reg;
 
+    // Intermmediate wires out of fp_std_0
+    logic [WIDTH - 1:0] result_o;
+    logic [16:0] add_result_mantissa_o;
+    logic [15:0] sub_result_mantissa_o;
+    logic max_sign_o;
+    logic min_sign_o;
+    logic [WIDTH - 1:0] max_result_o;
+    logic [WIDTH - 1:0] min_result_o;
+    logic [7:0] max_exponent_o;
+
+
+    /* Floating-point standard operations --> fp_std
+        Addition, subtraction, max, min
+    */
 
     fp_std_0 #(.WIDTH(WIDTH)) fp_std_0_inst (
-        .a(a_reg),
-        .b(b_reg),
-        .opcode(opcode_reg),
-        .result(std_result_stage1)
+        .clk_i(clk),
+        .a_i(a),
+        .b_i(b),
+        .op_i(opcode),
+        .result_o(std_result_stage1),
+        .add_result_mantissa_o(add_result_mantissa_o),
+        .sub_result_mantissa_o(sub_result_mantissa_o),
+        .max_sign_o(max_sign_o),
+        .min_sign_o(min_sign_o),
+        .max_result_o(max_result_o),
+        .min_result_o(min_result_o),
+        .max_exponent_o(max_exponent_o)
     );
 
     fp_std_1 #(.WIDTH(WIDTH)) fp_std_1_inst (
-        .a(std_result_stage1_reg),
-        .opcode(opcode_reg),
-        .result(std_result_stage2)
+        .clk_i(clk),
+        .op_i(opcode_reg),
+        .result_i(std_result_stage1),
+        .add_result_mantissa_i(add_result_mantissa_o),
+        .sub_result_mantissa_i(sub_result_mantissa_o),
+        .max_sign_i(max_sign_o),
+        .min_sign_i(min_sign_o),
+        .max_result_i(max_result_o),
+        .min_result_i(min_result_o),
+        .max_exponent_i(max_exponent_o),
+        .result_o(std_result_stage2)
     );
 
     fp_floor #(.WIDTH(WIDTH)) fp_floor_inst (
