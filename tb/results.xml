@@ -1,11 +1,14 @@
 <testsuites name="results">
   <testsuite name="all" package="all">
-    <property name="random_seed" value="1721608306" />
-    <testcase name="fp_test_add" classname="test_fp" file="/home/kvl01/TauriGPU/tb/test_fp.py" lineno="5" time="0.0005779266357421875" sim_time_ns="0.001" ratio_time="1.7303234323432344">
-      <failure message="Test failed with RANDOM_SEED=1721608306" />
+    <property name="random_seed" value="1721659461" />
+    <testcase name="test_fp_add" classname="test_fp" file="/home/kvl01/TauriGPU/tb/test_fp.py" lineno="5" time="0.009351968765258789" sim_time_ns="100.001" ratio_time="10693.04255714468">
+      <failure message="Test failed with RANDOM_SEED=1721659461" />
     </testcase>
-    <testcase name="fp_test_sub" classname="test_fp" file="/home/kvl01/TauriGPU/tb/test_fp.py" lineno="19" time="0.0001475811004638672" sim_time_ns="0.001" ratio_time="6.775935379644588">
-      <failure message="Test failed with RANDOM_SEED=1721608306" />
+    <testcase name="test_fp_mul" classname="test_fp" file="/home/kvl01/TauriGPU/tb/test_fp.py" lineno="20" time="0.009575128555297852" sim_time_ns="100.001" ratio_time="10443.828448096412">
+      <failure message="Test failed with RANDOM_SEED=1721659461" />
+    </testcase>
+    <testcase name="test_signal_widths" classname="test_fp" file="/home/kvl01/TauriGPU/tb/test_fp.py" lineno="35" time="0.00043201446533203125" sim_time_ns="0.0009999999999763531" ratio_time="2.3147373067885306">
+      <failure message="Test failed with RANDOM_SEED=1721659461" />
     </testcase>
   </testsuite>
 </testsuites>

@@ -1,31 +1,33 @@
 import cocotb
-from cocotb.triggers import Timer
 from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge, Timer
 
 @cocotb.test()
-async def fp_test_add(dut):
-    """Test for floating point addition"""
+async def test_fp_add(dut):
+    """Test for floating-point addition"""
 
-    A = 0.1
-    B = 0.2
+    dut.a.value = 0x3f8000
+    dut.b.value = 0x3f8000
+    dut.opcode.value = 0b0011
 
-    dut.a <= A
-    dut.B <= B
+    clock = Clock(dut.clk, 10, units="ns")
+    cocotb.start_soon(clock.start())
 
-    await Timer(2, units='ns')
+    await Timer(100, units='ns')
 
-    assert dut.result == 0.3, f"Error (fp add): {dut.result} != 0.3"
+    assert dut.result == 0x400000, f"Error (fp add): {dut.result.value} != 0x400000"
 
 @cocotb.test()
-async def fp_test_sub(dut):
-    """Test for floating point subtraction"""
+async def test_fp_mul(dut):
+    """Test for floating-point multiplication"""
 
-    A = 0.2
-    B = 0.1
+    dut.a.value = 0x3f8000
+    dut.b.value = 0x3f8000
+    dut.opcode.value = 0b0000
 
-    dut.a <= A
-    dut.B <= B
+    clock = Clock(dut.clk, 10, units="ns")
+    cocotb.start_soon(clock.start())
 
-    await Timer(2, units='ns')
+    await Timer(100, units='ns')
 
-    assert dut.result == 0.1, f"Error (fp sub): {dut.result} != 0.1"
+    assert dut.result == 0x3f8000, f"Error (fp mul): {dut.result.value} != 0x3f8000"
