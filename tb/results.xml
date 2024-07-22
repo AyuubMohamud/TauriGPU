@@ -1,0 +1,11 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1721608306" />
+    <testcase name="fp_test_add" classname="test_fp" file="/home/kvl01/TauriGPU/tb/test_fp.py" lineno="5" time="0.0005779266357421875" sim_time_ns="0.001" ratio_time="1.7303234323432344">
+      <failure message="Test failed with RANDOM_SEED=1721608306" />
+    </testcase>
+    <testcase name="fp_test_sub" classname="test_fp" file="/home/kvl01/TauriGPU/tb/test_fp.py" lineno="19" time="0.0001475811004638672" sim_time_ns="0.001" ratio_time="6.775935379644588">
+      <failure message="Test failed with RANDOM_SEED=1721608306" />
+    </testcase>
+  </testsuite>
+</testsuites>
