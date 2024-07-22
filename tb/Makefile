@@ -13,8 +13,6 @@ COCOTB_TEST_MODULES := test_fp
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
-EXTRA_ARGS += -g2012
-
 VERILOG_INCLUDE_DIRS = $(PWD)/../rtl/core/fp
 
 $(info Sources: $(VERILOG_SOURCES))

@@ -29,7 +29,7 @@ async def test_fp_mul(dut):
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 
-    for _ in range(3):
+    for _ in range(100):
         await RisingEdge(dut.clk)
 
     assert dut.result == 0x3f8000, f"Error (fp mul): {dut.result.value} != 0x3f8000"
