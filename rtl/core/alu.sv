@@ -45,6 +45,7 @@ module alu (
     // bge = opc == 7'b1000001
     // bltu= opc == 7'b1000010
     // bgeu= opc == 7'b1000000
+    
     wire [31:0] xor_result = a^b;
     wire [31:0] and_result = a&b;
     wire [31:0] or_result =  a|b;

@@ -12,4 +12,5 @@ module texToInteger (
 
     assign txWidth_o = product_x[25:15];
     assign txHeight_o = product_y[25:15];
+    
 endmodule

@@ -2,6 +2,12 @@
 
 SIM ?= verilator
 
+# TRACE_FILE ?= $(TOPLEVEL)_dump.vcd
+EXTRA_ARGS += --trace --trace-structs
+
+# COCOTB_TEST_ARGS ?= --trace-file $(TRACE_FILE)
+# export COCOTB_TEST_ARGS
+
 PWD=$(shell pwd)
 
 export PYTHONPATH := $(PWD)/../model:$(PYTHONPATH)

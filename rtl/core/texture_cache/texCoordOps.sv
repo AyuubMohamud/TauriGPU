@@ -261,4 +261,5 @@ module texCoordOps (
     
     assign s = texture_wrapS_mode_i==`GL_REPEAT ? GL_REPEAT_S : texture_wrapS_mode_i==`GL_CLAMP ? GL_CLAMP_TO_EDGE_S : GL_MIRRORED_REPEAT_S;
     assign t = texture_wrapT_mode_i==`GL_REPEAT ? GL_REPEAT_T : texture_wrapT_mode_i==`GL_CLAMP ? GL_CLAMP_TO_EDGE_T : GL_MIRRORED_REPEAT_T;
+
 endmodule
