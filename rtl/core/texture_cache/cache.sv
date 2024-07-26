@@ -52,6 +52,7 @@ module cache (
     input   wire logic                      tcache_d_valid,
     output  wire logic                      tcache_d_ready
 );
+
     wire busy;
     wire logic [14:0]               s;
     wire logic [14:0]               t;

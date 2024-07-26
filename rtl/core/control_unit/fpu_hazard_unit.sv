@@ -5,7 +5,9 @@ module fpu_hazard_unit #(
     input logic [WIDTH-1:0] fpu_instr_i,
     input logic execute_i, // signal that indicates executed fpu instruction that cycle
 
-    output logic hazard_o
+    output logic hazard_o,
+    output logic [5:0] dest_o,
+    output logic valid_o
 );
 
     // 1 in Execution, 2 in Writeback
@@ -14,9 +16,11 @@ module fpu_hazard_unit #(
 
     reg valid_1 = 0;
     reg valid_2 = 0;
+    reg valid_3 = 0;
 
     reg [5:0] dest_1 = 0;
     reg [5:0] dest_2 = 0;
+    reg [5:0] dest_3 = 0;
 
     logic [5:0] source_1 = {1'b0, fpu_instr_i[18:14]}; // for register banking
     logic [5:0] source_2 = {1'b1, fpu_instr_i[23:19]};
@@ -31,17 +35,25 @@ module fpu_hazard_unit #(
             valid_1 <= 0;
         end
 
+        // Cycle 2
         valid_2 <= valid_1;
         dest_2 <= dest_1;
+
+        // Cycle 3
+        valid_3 <= valid_2;
+        dest_3 <= dest_2;
 
     end
 
     logic source_1_hazard;
     logic source_2_hazard;
 
-    assign source_1_hazard = (dest_1 == source_1 && valid_1) || (dest_2 == source_1 && valid_2);
-    assign source_2_hazard = (dest_1 == source_2 && valid_1) || (dest_2 == source_2 && valid_2);
+    assign source_1_hazard = (dest_1 == source_1 && valid_1) || (dest_2 == source_1 && valid_2) || (dest_3 == source_1 && valid_3);
+    assign source_2_hazard = (dest_1 == source_2 && valid_1) || (dest_2 == source_2 && valid_2) || (dest_3 == source_2 && valid_3);
 
     assign hazard_o = source_1_hazard || source_2_hazard;
+
+    assign dest_o = dest_3;
+    assign valid_o = valid_3;
 
 endmodule

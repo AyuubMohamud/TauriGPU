@@ -29,3 +29,6 @@ ISA: Cutdown RISC-V, need (add, sub, mul, reciprocal sqrt, sin, cos)
 Memory and SFU - 4 calls
 ALU and FPU - can just read as long as there are no hazards
 
+
+There are two register files to prevent conflict between cycle running for ALU vs FPU
+
