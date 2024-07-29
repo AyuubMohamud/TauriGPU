@@ -12,19 +12,34 @@ module fp_mul_0 #(
     output logic [8:0] sum_exp_o
 );
     // Extract fields from input
-    logic sign1 = a[23];
-    logic sign2 = b[23];
+    logic sign1;
+    logic sign2;
 
-    logic [7:0] exp1 = a[22:15];
-    logic [7:0] exp2 = b[22:15];
+    logic [7:0] exp1;
+    logic [7:0] exp2;
 
-    logic mantissa_top_bit_1 = exp1==0 ? 1'b0 : 1'b1;
-    logic mantissa_top_bit_2 = exp2==0 ? 1'b0 : 1'b1;
+    logic mantissa_top_bit_1;
+    logic mantissa_top_bit_2;
 
-    logic [15:0] mant1 = {mantissa_top_bit_1, a[14:0]}; // implicit leading 1
-    logic [15:0] mant2 = {mantissa_top_bit_2, b[14:0]}; 
+    logic [15:0] mant1;
+    logic [15:0] mant2;
 
-    logic [31:0] product = mant1 * mant2; // 16-bit mantissa * 16-bit mantissa = 32-bit product
+    logic [31:0] product;
+
+    // Assign values to the fields
+    assign sign1 = a[23];
+    assign sign2 = b[23];
+
+    assign exp1 = a[22:15];
+    assign exp2 = b[22:15];
+
+    assign mantissa_top_bit_1 = (exp1 == 0) ? 1'b0 : 1'b1;
+    assign mantissa_top_bit_2 = (exp2 == 0) ? 1'b0 : 1'b1;
+
+    assign mant1 = {mantissa_top_bit_1, a[14:0]}; // implicit leading 1
+    assign mant2 = {mantissa_top_bit_2, b[14:0]}; 
+
+    assign product = mant1 * mant2; // 16-bit mantissa * 16-bit mantissa = 32-bit product
 
     always_ff @(posedge clk) begin
         // If either input number has a high-order bit of zero, then that input is zero and the product is zero.
