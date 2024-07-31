@@ -1,0 +1,9 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1722391948" />
+    <testcase name="test_fp_mul_1" classname="fpu_mul_tb" file="/home/kvl01/TauriGPU/tb/fpu_mul_tb.py" lineno="5" time="0.0017886161804199219" sim_time_ns="190.001" ratio_time="106227.93312503333" />
+    <testcase name="test_fp_mul_2" classname="fpu_mul_tb" file="/home/kvl01/TauriGPU/tb/fpu_mul_tb.py" lineno="35" time="0.001312255859375" sim_time_ns="200.001" ratio_time="152410.06437209304" />
+    <testcase name="test_fp_mul_3" classname="fpu_mul_tb" file="/home/kvl01/TauriGPU/tb/fpu_mul_tb.py" lineno="64" time="0.0014595985412597656" sim_time_ns="200.00100000000003" ratio_time="137024.66421169555" />
+    <testcase name="test_fp_mul_4" classname="fpu_mul_tb" file="/home/kvl01/TauriGPU/tb/fpu_mul_tb.py" lineno="93" time="0.0013246536254882812" sim_time_ns="200.00099999999998" ratio_time="150983.62028509716" />
+  </testsuite>
+</testsuites>

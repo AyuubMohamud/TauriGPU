@@ -1,68 +1,142 @@
-from os import getenv
+from os import getenv, environ
 from pathlib import Path
 from cocotb.runner import get_runner
 from typing import Any
+import xml.etree.ElementTree as ET
+import sys
+import shutil
 
-def simulate_pass(
-    project_dir: Path,
-    module_params: dict[str, Any] = {},
+def get_results(results_file: Path):
+    if not results_file.exists():
+        print(f"Results file not found: {results_file}")
+        return 0, 1
+    tree = ET.parse(results_file)
+    root = tree.getroot()
+    num_tests = int(root.attrib['tests'])
+    fail = int(root.attrib['failures'])
+    return num_tests, fail
+
+def single_test(
+    i: int,  # id
+    deps: list[str],
+    module: str,
+    test_module: str,
+    module_params: dict,
+    module_path: Path,
+    comp_path: Path,
+    test_work_dir: Path,
+    test_dir: Path,
     extra_build_args: list[str] = [],
+    seed: int = None,
     trace: bool = False,
+    skip_build: bool = False,
 ):
-    rtl_dir = project_dir / "rtl"
-    sim_dir = project_dir / "sim" / "sim_build"
-
-    fp_dir = rtl_dir / "core" / "fp"
-    verilog_sources = list(fp_dir.glob("*.sv"))
-
-    SIM = getenv("SIM", "verilator")
-
-    top_module = "fp_mul"
-    test_module = "fpu_tb"
-
-    runner = get_runner(SIM)
-    runner.build(
-        verilog_sources=verilog_sources,
-        includes=[rtl_dir],
-        hdl_toplevel=top_module,
-        build_args=[
-            # Verilator linter is overly strict.
-            # Too many errors
-            # These errors are in later versions of verilator
-            "-Wno-GENUNNAMED",
-            "-Wno-WIDTHEXPAND",
-            "-Wno-WIDTHTRUNC",
-            # Simulation Optimisation
-            "-Wno-UNOPTFLAT",
-            # Signal trace in dump.fst
-            *(["--trace-fst", "--trace-structs", "--trace"] if trace else []),
-            "-prof-c",
-            "--stats",
-            "--assert",
-            "-O2",
-            "-build-jobs",
-            "8",
-            "-Wno-fatal",
-            "-Wno-lint",
-            "-Wno-style",
-        ],
-        parameters=module_params,
-        build_dir=sim_dir,
-    )
-    runner.test(
-        hdl_toplevel=top_module,
-        hdl_toplevel_lang="verilog",
-        test_module=test_module,
-        results_xml="results.xml",
-    )
+    print("# ---------------------------------------")
+    print(f"# Test {i}")
+    print("# ---------------------------------------")
+    print(f"# Parameters:")
+    print(f"# - {'Test Index'}: {i}")
+    for k, v in module_params.items():
+        print(f"# - {k}: {v}")
+    print("# ---------------------------------------")
+    
+    # Gather all Verilog files in the module directory and its subdirectories
+    verilog_sources = [str(p) for p in Path(module_path).parent.glob('**/*.sv')]
+    print(f"Verilog sources: {verilog_sources}")
+    
+    # Add the test directory to Python's sys.path
+    sys.path.append(str(test_dir))
+    print(f"Added to Python path: {test_dir}")
+    
+    # Set environment variables to control file output locations
+    environ['PYTHONPYCACHEPREFIX'] = str(test_work_dir / '__pycache__')
+    environ['GMON_OUT_PREFIX'] = str(test_work_dir)
+    
+    runner = get_runner(getenv("SIM", "verilator"))
+    if not skip_build:
+        try:
+            runner.build(
+                verilog_sources=verilog_sources,
+                includes=[str(comp_path.joinpath(f"{d}/rtl/")) for d in deps] + [str(Path(module_path).parent)],
+                hdl_toplevel=module,
+                build_args=[
+                    "-Wno-GENUNNAMED",
+                    "-Wno-WIDTHEXPAND",
+                    "-Wno-WIDTHTRUNC",
+                    "-Wno-UNOPTFLAT",
+                    "-prof-c",
+                    "--assert",
+                    "--stats",
+                    *(["--trace-fst", "--trace-structs"] if trace else []),
+                    "-O2",
+                    "-build-jobs",
+                    "8",
+                    "-Wno-fatal",
+                    "-Wno-lint",
+                    "-Wno-style",
+                    *extra_build_args,
+                ],
+                parameters=module_params,
+                build_dir=test_work_dir,
+            )
+        except Exception as e:
+            print(f"Error occurred during build: {e}")
+            return {
+                "num_tests": 0,
+                "failed_tests": 1,
+                "params": module_params,
+                "error": str(e)
+            }
+    
+    try:
+        runner.test(
+            hdl_toplevel=module,
+            hdl_toplevel_lang="verilog",
+            test_module=test_module,
+            seed=seed,
+            results_xml=str(test_work_dir / "results.xml"),
+            build_dir=test_work_dir,
+            test_dir=str(test_dir),
+        )
+        num_tests, fail = get_results(test_work_dir / "results.xml")
+        
+        # Move gmon.out if it exists in test_dir
+        gmon_src = test_dir / "gmon.out"
+        if gmon_src.exists():
+            shutil.move(str(gmon_src), str(test_work_dir / "gmon.out"))
+        
+    except Exception as e:
+        print(f"Error occurred while running Verilator simulation: {e}")
+        num_tests, fail = 0, 1
+    
+    return {
+        "num_tests": num_tests,
+        "failed_tests": fail,
+        "params": module_params,
+    }
 
 # Sample usage:
 if __name__ == "__main__":
     project_dir = Path(__file__).parent.parent
+    tb_dir = Path(__file__).parent
+    test_dir = tb_dir / "test"
+    sim_build_dir = tb_dir / "sim_build"
     module_params = {} # Add module parameters here
-    simulate_pass(
-        project_dir=project_dir,
-        module_params=module_params,
-        extra_build_args=[],
-        trace=True # Enable trace to generate waveforms
+    
+    # Ensure sim_build_dir exists
+    sim_build_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Example usage of single_test function
+    result = single_test(
+        i=1,
+        deps=["fp"],
+        module="fp_mul",
+        test_module="fpu_mul_tb",
+        module_params={},
+        module_path=project_dir / "rtl" / "core" / "fp" / "fp_mul.sv",
+        comp_path=project_dir / "rtl" / "core",
+        test_work_dir=sim_build_dir,
+        test_dir=test_dir,
+        trace=True
     )
+    print(f"Test result: {result}")
