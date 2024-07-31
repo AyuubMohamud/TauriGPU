@@ -20,35 +20,61 @@ module fp_std_0 #(
     logic [WIDTH - 1:0] min_result;
 
     // Extract fields from input
-    logic sign1 = a_i[23];
-    logic sign2 = op_i[2] == 1 ? ~b_i[23] : b_i[23];
-    logic [7:0] exp1 = a_i[22:15];
-    logic [7:0] exp2 = b_i[22:15];
+    logic sign1;
+    logic sign2;
+    logic [7:0] exp1;
+    logic [7:0] exp2;
 
-    logic mantissa_top_bit_1 = exp1==0 ? 1'b0 : 1'b1;
-    logic mantissa_top_bit_2 = exp2==0 ? 1'b0 : 1'b1;
-    logic [15:0] mant1 = {mantissa_top_bit_1, a_i[14:0]}; // implicit leading 1
-    logic [15:0] mant2 = {mantissa_top_bit_2, b_i[14:0]}; 
+    logic mantissa_top_bit_1;
+    logic mantissa_top_bit_2;
+    logic [15:0] mant1;
+    logic [15:0] mant2;
 
-    wire a_is_bigger = exp1 > exp2 || (exp1 == exp2 && mant1 > mant2);
+    wire a_is_bigger;
 
-    wire [15:0] max_mantissa = a_is_bigger ? mant1 : mant2;
-    wire [7:0] max_exponent = a_is_bigger ? exp1 : exp2;
-    wire [15:0] min_mantissa = a_is_bigger ? mant2 : mant1;
-    wire [7:0] min_exponent = a_is_bigger ? exp2 : exp1;
+    wire [15:0] max_mantissa;
+    wire [7:0] max_exponent;
+    wire [15:0] min_mantissa;
+    wire [7:0] min_exponent;
 
-    wire [7:0] exp_diff = max_exponent - min_exponent;
+    wire [7:0] exp_diff;
 
-    wire [15:0] shift_mantissa = min_mantissa >> exp_diff[3:0];
+    wire [15:0] shift_mantissa;
 
-    wire [16:0] add_result_mantissa = max_mantissa + shift_mantissa;
-    wire [15:0] sub_result_mantissa = max_mantissa - shift_mantissa;
+    wire [16:0] add_result_mantissa;
+    wire [15:0] sub_result_mantissa;
 
-    wire max_sign = a_is_bigger ? sign1 : sign2;
-    wire min_sign = a_is_bigger ? sign2 : sign1;
+    wire max_sign;
+    wire min_sign;
+
+    assign sign1 = a_i[23];
+    assign sign2 = (op_i[2] == 1) ? ~b_i[23] : b_i[23];
+    assign exp1 = a_i[22:15];
+    assign exp2 = b_i[22:15];
+
+    assign mantissa_top_bit_1 = (exp1 == 0) ? 1'b0 : 1'b1;
+    assign mantissa_top_bit_2 = (exp2 == 0) ? 1'b0 : 1'b1;
+    assign mant1 = {mantissa_top_bit_1, a_i[14:0]}; // implicit leading 1
+    assign mant2 = {mantissa_top_bit_2, b_i[14:0]}; 
+
+    assign a_is_bigger = (exp1 > exp2) || ((exp1 == exp2) && (mant1 > mant2));
+
+    assign max_mantissa = a_is_bigger ? mant1 : mant2;
+    assign max_exponent = a_is_bigger ? exp1 : exp2;
+    assign min_mantissa = a_is_bigger ? mant2 : mant1;
+    assign min_exponent = a_is_bigger ? exp2 : exp1;
+
+    assign exp_diff = max_exponent - min_exponent;
+
+    assign shift_mantissa = min_mantissa >> exp_diff[3:0];
+
+    assign add_result_mantissa = max_mantissa + shift_mantissa;
+    assign sub_result_mantissa = max_mantissa - shift_mantissa;
+
+    assign max_sign = a_is_bigger ? sign1 : sign2;
+    assign min_sign = a_is_bigger ? sign2 : sign1;
 
     always_comb begin
-
         max_result = 24'b0;
         min_result = 24'b0;
 
@@ -59,21 +85,19 @@ module fp_std_0 #(
         if (!sign1 && !sign2) begin
             max_result = a_is_bigger ? a_i : b_i;
             min_result = a_is_bigger ? b_i : a_i;
-        end else if (!sign1&&sign2) begin
+        end else if (!sign1 && sign2) begin
             max_result = a_i;
             min_result = b_i;
-        end else if (sign1&!sign2) begin
+        end else if (sign1 && !sign2) begin
             max_result = b_i;
             min_result = a_i;
-        end else if (sign1&sign2) begin
+        end else if (sign1 && sign2) begin
             max_result = a_is_bigger ? b_i : a_i;
             min_result = a_is_bigger ? a_i : b_i;
         end
-
     end
 
     always_ff @(posedge clk_i) begin
-        
         max_result_o <= max_result;
         min_result_o <= min_result;
         add_result_mantissa_o <= add_result_mantissa;
@@ -81,7 +105,6 @@ module fp_std_0 #(
         max_sign_o <= max_sign;
         min_sign_o <= min_sign;
         max_exponent_o <= max_exponent;
-
     end
 
 endmodule

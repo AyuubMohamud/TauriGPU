@@ -115,4 +115,4 @@ async def test_fp_add_4(dut):
         await RisingEdge(dut.clk)
 
     expected_result = 0x3fc000  # Expected result: 1.0 in IEEE 754 format
-    assert dut.result.value == expected_result, f"Error (fp add): {dut.result.value} != {expected_result}"
+    assert dut.result.value == expected_result, f"Error (fp add): {dut.result.value} != {bin(expected_result)}"

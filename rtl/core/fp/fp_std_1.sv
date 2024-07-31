@@ -2,7 +2,7 @@ module fp_std_1 #(
     parameter WIDTH = 24
 )(
     input logic clk_i,
-    input wire [3:0]  op_i,
+    input wire [3:0] op_i,
 
     input logic [WIDTH - 1:0] result_i,
     input logic [16:0] add_result_mantissa_i,
@@ -18,11 +18,16 @@ module fp_std_1 #(
 
     logic [WIDTH - 1:0] add_sub_result;
     logic [7:0] new_exp_diff;
-    wire [4:0] new_exp_diff_w = new_exp_diff[3:0] + 1;
+    wire [4:0] new_exp_diff_w;
+    wire [7:0] add_result_exponent;
+    wire [15:0] new_sub_result_mantissa;
+    wire [7:0] sub_result_exponent;
 
-    wire [7:0] add_result_exponent = add_result_mantissa_i[16] ? max_exponent_i + 1 : max_exponent_i;
-    wire [15:0] new_sub_result_mantissa = sub_result_mantissa_i << new_exp_diff_w;
-    wire [7:0] sub_result_exponent = max_exponent_i - new_exp_diff;
+    assign new_exp_diff_w = new_exp_diff[3:0] + 1;
+
+    assign add_result_exponent = add_result_mantissa_i[16] ? max_exponent_i + 1 : max_exponent_i;
+    assign new_sub_result_mantissa = sub_result_mantissa_i << new_exp_diff_w;
+    assign sub_result_exponent = max_exponent_i - new_exp_diff;
 
     // Determine new_exp_diff
     always_comb begin
@@ -52,7 +57,7 @@ module fp_std_1 #(
 
     always_ff @(posedge clk_i) begin
         // Register the final result
-        case(op_i[1:0])
+        case (op_i[1:0])
             2'b00: result_reg <= max_sign_i == min_sign_i ? {max_sign_i, add_result_exponent, add_result_mantissa_i[16] ? add_result_mantissa_i[15:1] : add_result_mantissa_i[14:0]} : {max_sign_i, sub_result_exponent, new_sub_result_mantissa[15:1]};
             2'b01: result_reg <= max_result_i;
             2'b10: result_reg <= min_result_i;

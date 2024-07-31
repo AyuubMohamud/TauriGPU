@@ -1,9 +1,23 @@
 from pathlib import Path
 from single_test import single_test
+import shutil
+import glob
 
 if __name__ == "__main__":
-    project_dir = Path(__file__).parent.parent
-    tb_dir = Path(__file__).parent
+    # Get the current directory (same as runner.py)
+    current_dir = Path(__file__).parent
+
+    # Remove all previous sim_build.* files/directories
+    for item in current_dir.glob('sim_build.*'):
+        if item.is_file():
+            item.unlink()
+        elif item.is_dir():
+            shutil.rmtree(item)
+    
+    print("Removed all previous sim_build.* files/directories.")
+
+    project_dir = current_dir.parent
+    tb_dir = current_dir
     test_dir = tb_dir / "test"
     sim_build_dir = tb_dir / "sim_build"
     module_params = {}  # Add module parameters here
@@ -11,7 +25,7 @@ if __name__ == "__main__":
     # Ensure sim_build_dir exists
     sim_build_dir.mkdir(parents=True, exist_ok=True)
     
-    # Example usage of single_test function
+    # Calling single test function
     result = single_test(
         i=1,
         deps=["fp"],
@@ -24,4 +38,18 @@ if __name__ == "__main__":
         test_dir=test_dir,
         trace=True
     )
-    print(f"Test result: {result}")
+
+    result = single_test(
+        i=2,
+        deps=["fp"],
+        module="fp_addpipe",
+        test_module="fpu_add_tb",
+        module_params={},
+        module_path=project_dir / "rtl" / "core" / "fp" / "fp_addpipe.sv",
+        comp_path=project_dir / "rtl" / "core",
+        test_work_dir=sim_build_dir,
+        test_dir=test_dir,
+        trace=True
+    )
+
+    print(f"Test result: {result}") # This gives errors currently
