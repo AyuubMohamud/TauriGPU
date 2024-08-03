@@ -15,7 +15,7 @@ module fpu #(
 
 
     /* FP pipelines
-        1. Add line: Std, Floor, Ceil  
+        1. Add line: Std (add, sub, max, min), Floor, Ceil  
         2. Mul line: Mul
         3. Misc line: Abs, Neg, Sign
     */

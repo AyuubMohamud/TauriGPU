@@ -25,31 +25,19 @@ if __name__ == "__main__":
     # Ensure sim_build_dir exists
     sim_build_dir.mkdir(parents=True, exist_ok=True)
     
-    # Calling single test function
+    ### Calling single test function ###
+
     result = single_test(
         i=1,
         deps=["fp"],
-        module="fp_mul",
-        test_module="fpu_mul_tb",
+        module="fpu",
+        test_module="fpu_sign_tb",
         module_params={},
-        module_path=project_dir / "rtl" / "core" / "fp" / "fp_mul.sv",
+        module_path=project_dir / "rtl" / "core" / "fp" / "fpu.sv",
         comp_path=project_dir / "rtl" / "core",
         test_work_dir=sim_build_dir,
-        test_dir=test_dir,
+        test_dir=test_dir / "core" / "fpu",
         trace=True
     )
 
-    result = single_test(
-        i=2,
-        deps=["fp"],
-        module="fp_addpipe",
-        test_module="fpu_add_tb",
-        module_params={},
-        module_path=project_dir / "rtl" / "core" / "fp" / "fp_addpipe.sv",
-        comp_path=project_dir / "rtl" / "core",
-        test_work_dir=sim_build_dir,
-        test_dir=test_dir,
-        trace=True
-    )
-
-    print(f"Test result: {result}") # This gives errors currently
+    print(f"Test result: {result}")
