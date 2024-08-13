@@ -13,8 +13,8 @@ async def test_fp_mul_1(dut):
     # Initialize inputs
     dut.a.value = 0x3f8000  # 1.0 in IEEE 754 format
     dut.b.value = 0x3f8000  # 1.0 in IEEE 754 format
-    dut.product_o.value = 0x0
-    # dut.opcode.value = 0b0000
+    dut.result.value = 0x0
+    dut.opcode.value = 0b0011
 
     for _ in range(10):
         await RisingEdge(dut.clk)
@@ -43,7 +43,8 @@ async def test_fp_mul_2(dut):
     # Initialize inputs
     dut.a.value = 0x3f0000  # 0.5 in IEEE 754 format
     dut.b.value = 0x400000  # 2.0 in IEEE 754 format
-    dut.product_o.value = 0x0
+    dut.result.value = 0x0
+    dut.opcode.value = 0b0011
 
     for _ in range(10):
         await RisingEdge(dut.clk)
@@ -72,7 +73,8 @@ async def test_fp_mul_3(dut):
     # Initialize inputs
     dut.a.value = 0xbf8000  # -1.0 in IEEE 754 format
     dut.b.value = 0x404000  # 3.0 in IEEE 754 format
-    dut.product_o.value = 0x0
+    dut.result.value = 0x0
+    dut.opcode.value = 0b0011
 
     for _ in range(10):
         await RisingEdge(dut.clk)
@@ -101,7 +103,8 @@ async def test_fp_mul_4(dut):
     # Initialize inputs
     dut.a.value = 0x000000  # 0.0 in IEEE 754 format
     dut.b.value = 0x3f8000  # 1.0 in IEEE 754 format
-    dut.product_o.value = 0x0
+    dut.result.value = 0x0
+    dut.opcode.value = 0b0011
 
     for _ in range(10):
         await RisingEdge(dut.clk)

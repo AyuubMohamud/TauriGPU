@@ -31,7 +31,7 @@ if __name__ == "__main__":
         i=1,
         deps=["fp"],
         module="fpu",
-        test_module="fpu_sign_tb",
+        test_module="fpu_sub_tb",
         module_params={},
         module_path=project_dir / "rtl" / "core" / "fp" / "fpu.sv",
         comp_path=project_dir / "rtl" / "core",
