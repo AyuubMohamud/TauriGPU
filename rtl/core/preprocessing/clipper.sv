@@ -11,7 +11,8 @@ module clipper #(
     input logic [VERTEX_WIDTH-1:0] v2_x_i, v2_y_i, v2_z_i, v2_w_i,
 
     // Frustum plane coefficients
-    input logic signed [FRUSTUM_WIDTH-1:0] plane_normal_x_i, plane_normal_y_i, plane_normal_z_i, plane_offset_i, // Plane equation: N . P + d = 0
+    // Plane equation: N . P + d = 0, equivalent to (A,B,C,D) coefficients from the equation Ax + By + Cz + D = 0
+    input logic signed [FRUSTUM_WIDTH-1:0] plane_normal_x_i, plane_normal_y_i, plane_normal_z_i, plane_offset_i, 
 
     // Output vertices
         // Two triangles because there is a potential of internal quad split
@@ -21,7 +22,7 @@ module clipper #(
     output logic [VERTEX_WIDTH-1:0] clipped_v3_x_o, clipped_v3_y_o, clipped_v3_z_o, clipped_v3_w_o,
     output logic [VERTEX_WIDTH-1:0] clipped_v4_x_o, clipped_v4_y_o, clipped_v4_z_o, clipped_v4_w_o,
     output logic [VERTEX_WIDTH-1:0] clipped_v5_x_o, clipped_v5_y_o, clipped_v5_z_o, clipped_v5_w_o,
-        
+    
     output logic done_o,
     output logic valid_o,
     
@@ -33,6 +34,7 @@ module clipper #(
     logic [2:0] vertex_inside; // XXX <-- which vertices are inside the frustum
     logic [1:0] vertex_inside_count; // Count of how many vertices are inside the frustum
     logic signed [VERTEX_WIDTH:0] dot_product_v0, dot_product_v1, dot_product_v2;
+    // TODO: Check bit width of dot products
 
     // Signals for clipping
     logic [VERTEX_WIDTH-1:0] intersect1_x, intersect1_y, intersect1_z, intersect1_w;
@@ -53,7 +55,7 @@ module clipper #(
 
     // State machine
     always_ff @(posedge clk_i) begin
-        if (start_i) begin
+        if (!start_i) begin
             curr_state <= IDLE;
         end else begin
             curr_state <= next_state;
@@ -63,7 +65,7 @@ module clipper #(
     always_comb begin
         next_state = curr_state;
         case (curr_state)
-            IDLE: if (start_i) next_state = CLASSIFY;
+            IDLE: next_state = CLASSIFY;
             CLASSIFY: next_state = CLIP;
             CLIP: next_state = DONE;
             DONE: next_state = IDLE;
@@ -138,7 +140,7 @@ module clipper #(
                 $signed({1'b0, v2_z_i}) * $signed({1'b0, plane_normal_z_i}) + 
                 $signed({1'b0, v2_w_i}) * $signed({1'b0, plane_offset_i});
 
-            vertex_inside[0] <= (dot_product_v0 >= 0);
+            vertex_inside[0] <= (dot_product_v0 >= 0); // (!dot_product_v0[VERTEX_WIDTH]);
             vertex_inside[1] <= (dot_product_v1 >= 0);
             vertex_inside[2] <= (dot_product_v2 >= 0);
 
@@ -183,7 +185,7 @@ module clipper #(
                     // ** Intersection order must be followed:
                     // ** If v2 is inside, then v0-v1 is the first intersection
                     // ** If v2 is outside, then v1-v2 is the first intersection
-                    // ** The triangle is always made using intersection 1 to opposite vertex
+                    // ** The triangle is always made using intersection 1 to opposite vertex as the edge
                     // TODO: Implement in intersection module
                     valid_o <= 1;
                     num_triangles_o <= 2;
@@ -233,8 +235,6 @@ module clipper #(
     // Done stage
     always_ff @(posedge clk_i) begin
         done_o <= (curr_state == DONE) ? 1'b1 : 1'b0;
-        //! I think somewhere you need to reset valid_o and num_triangles_o
-        //! Do you even need a done_o signal?
     end
 
 endmodule
