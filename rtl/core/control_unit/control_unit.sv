@@ -1,4 +1,4 @@
-`include "def.sv"
+// `include "def.sv"
 
 module control_unit #(
     parameter WIDTH = 32,

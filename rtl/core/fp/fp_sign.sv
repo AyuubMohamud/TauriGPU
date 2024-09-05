@@ -5,7 +5,8 @@ module fp_sign #(
     output logic [WIDTH - 1:0] result
 );
 
-    logic result_sign = a[23];
+    logic result_sign;
+    assign result_sign = a[23];
 
     always_comb begin
         

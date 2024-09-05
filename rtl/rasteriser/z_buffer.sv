@@ -1,4 +1,4 @@
-module rasteriser #(
+module z_buffer #(
     parameter WIDTH = 32,
     parameter X_RES = 1280,
     parameter Y_RES = 720

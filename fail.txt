@@ -1,0 +1,14 @@
+fp_sign:
+- Failing test 3 (input a = 0) --> output is not 0
+
+fp_add:
+- Failing test 4 (3.5-2.5 not giving 1.0)
+
+fp_ceil:
+- Failing tests 1,3,4,5
+
+fp_floor:
+- Failing tests 2,3,5
+
+fp_sub:
+- Failing tests 1,2,4

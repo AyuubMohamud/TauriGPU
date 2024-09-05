@@ -1,0 +1,34 @@
+DFG 'pre inline' patterns with depth 1
+            3 (SEL@0 vA:a):b
+            2 (CONCAT '0:a _A:a):b
+            2 (CONCAT _A:1 _B:a)*:b
+            2 (NEQ '0:a _A:a)*:1
+            2 (SEL@A vA:a)*:b
+            2 (SEL@A vA:a):1
+            1 (CONCAT _A:a vA:b):c
+            1 (CONCAT vA:1 _A:a):b
+            1 (COND _A:1 cA:a _B:a):a
+            1 (LT cA:a vA:a):1
+            1 (MUL _A:a _B:a):a
+
+DFG 'pre inline' patterns with depth 2
+            2 (CONCAT '0:a (CONCAT _A:1 _B:b)*:a):c
+            2 (CONCAT (NEQ '0:a _A:a)*:1 (SEL@0 vA:b):c)*:d
+            2 (NEQ '0:a (SEL@A vA:b)*:a)*:1
+            1 (CONCAT (SEL@0 vA:a):b vB:c):d
+            1 (CONCAT vA:1 (CONCAT _A:a vB:b):c):d
+            1 (COND (LT cA:a vA:a):1 cB:b (CONCAT vB:1 _A:c):b):b
+            1 (MUL (CONCAT '0:a _A:a):b (CONCAT '0:a _B:a):b):b
+
+DFG 'pre inline' patterns with depth 3
+            2 (CONCAT '0:a (CONCAT (NEQ '0:b _A:b)*:1 (SEL@0 vA:c):d)*:a):e
+            2 (CONCAT (NEQ '0:a (SEL@A vA:b)*:a)*:1 (SEL@0 vA:b):c)*:d
+            1 (CONCAT vA:1 (CONCAT (SEL@0 vB:a):b vC:c):d):e
+            1 (COND (LT cA:a vA:a):1 cB:b (CONCAT vB:1 (CONCAT _A:c vC:d):e):b):b
+            1 (MUL (CONCAT '0:a (CONCAT _A:1 _B:b)*:a):c (CONCAT '0:a (CONCAT _C:1 _D:b)*:a):c):c
+
+DFG 'pre inline' patterns with depth 4
+            2 (CONCAT '0:a (CONCAT (NEQ '0:b (SEL@A vA:c)*:b)*:1 (SEL@0 vA:c):d)*:a):e
+            1 (COND (LT cA:a vA:a):1 cB:b (CONCAT vB:1 (CONCAT (SEL@0 vA:a):c vC:d):e):b):b
+            1 (MUL (CONCAT '0:a (CONCAT (NEQ '0:b _A:b)*:1 (SEL@0 vA:c):d)*:a):e (CONCAT '0:a (CONCAT (NEQ '0:b _B:b)*:1 (SEL@0 vB:c):d)*:a):e):e
+
