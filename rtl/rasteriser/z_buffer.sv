@@ -6,7 +6,9 @@ module z_buffer #(
     input logic clk_i,
     input logic start_i,
     input logic flush_i, // reset buffer every frame
-    input logic pixel_x_i, pixel_y_i, pixel_z_i,
+    input logic [$clog2(X_RES)-1:0] pixel_x_i,
+    input logic [$clog2(Y_RES)-1:0] pixel_y_i, 
+    input logic [PIXEL_SIZE-1:0] pixel_z_i,
 
     output logic render_o,
     output logic done_o
@@ -25,19 +27,29 @@ module z_buffer #(
     } pixel_buffer;
 
     // Z-buffer memory
-    pixel_buffer z_buffer[X_RES-1:0][Y_RES-1:0] = '{default: '{valid: 1'b0, z: '0}};
+    pixel_buffer z_buffer_array[X_RES-1:0][Y_RES-1:0];
+
+    // Init buffer
+    initial begin
+        for (int x = 0; x < X_RES; x++) begin
+            for (int y = 0; y < Y_RES; y++) begin
+                z_buffer_array[x][y].valid = 0;
+                z_buffer_array[x][y].z = 0;
+            end
+        end
+    end
 
     always_ff @(posedge clk_i) begin
         if (start_i) begin
             
-            if (!z_buffer[pixel_x_i][pixel_y_i].valid) begin
+            if (!z_buffer_array[pixel_x_i][pixel_y_i].valid) begin
                 // If value is not valid, write to buffer
-                z_buffer[pixel_x_i][pixel_y_i].z <= pixel_z_i;
-                z_buffer[pixel_x_i][pixel_y_i].valid <= 1;
+                z_buffer_array[pixel_x_i][pixel_y_i].z <= pixel_z_i;
+                z_buffer_array[pixel_x_i][pixel_y_i].valid <= 1;
                 render_o <= 1;
             end
-            else if (pixel_z_i < z_buffer[pixel_x_i][pixel_y_i].z) begin
-                z_buffer[pixel_x_i][pixel_y_i].z <= pixel_z_i;
+            else if (pixel_z_i < z_buffer_array[pixel_x_i][pixel_y_i].z) begin
+                z_buffer_array[pixel_x_i][pixel_y_i].z <= pixel_z_i;
                 render_o <= 1;
             end
             else begin
@@ -45,7 +57,7 @@ module z_buffer #(
             end
 
         end else if (flush_i) begin
-            z_buffer[pixel_x_i][pixel_y_i].valid <= 0;
+            z_buffer_array[pixel_x_i][pixel_y_i].valid <= 0;
         end
         else begin
             done_o <= 0;
