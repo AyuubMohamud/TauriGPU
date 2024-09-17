@@ -24,7 +24,7 @@ module z_buffer #(
         ** Implementation of the z-buffer can be modified based on whether you are normalizing the depth values to [0,1]
         
         ** https://fgiesen.wordpress.com/2011/07/08/a-trip-through-the-graphics-pipeline-2011-part-7/
-        ** Early Z is not implemented here
+        ** Early Z is not implemented here <--
         
     */
 
