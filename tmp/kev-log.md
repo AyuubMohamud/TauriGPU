@@ -1,11 +1,4 @@
-# Kevin's Logbook
-
-### Tasks at hand
-- Pipeline add stage
-- Finish decode (+ fpu hazard unit)
-- Look at rastericer
-
-Note: Finish the pipeline add stage and see how many ff chains i need, likely (3) which is one more than the ALU side, so yeah...
+# Logbook
 
 ### Timelog
 July 3, 2024
@@ -16,19 +9,32 @@ July 9, 2024
 
 ### Notes
 
-Read Raspberry Pi's GPU driver documentation
-
 Goal 1: Run (bare-metal) a visualisation of a spinning 3D cube
+
 Goal 2: Run Doom (classic) on Linux
+
+---
 
 Tiny-GPU + rasteriser + texture unit + fp16 + 32-bit integers
 
 ISA: Cutdown RISC-V, need (add, sub, mul, reciprocal sqrt, sin, cos)
-
-
 Memory and SFU - 4 calls
+
 ALU and FPU - can just read as long as there are no hazards
-
-
 There are two register files to prevent conflict between cycle running for ALU vs FPU
+
+---
+
+--> Vertex shader
+- Object to screen space
+
+--> Rasterisation stage 
+- Vertex to fragment, aka pixels
+- Barycentric coordinates computed to interpolate vertex attributes
+
+--> Fragment shader
+- Runs per fragment (pixel)
+- Interpolated values
+
+--> Testing (alpha -> stencil -> depth)
 

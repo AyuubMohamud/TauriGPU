@@ -1,4 +1,4 @@
-module intersection_calculator #(
+module intersection #(
     parameter VERTEX_WIDTH = 32,
     parameter FRAC_BITS = 16,  // Number of fractional bits for fixed-point representation
     parameter NEWTON_ITERATIONS = 3  // Number of Newton-Raphson iterations
