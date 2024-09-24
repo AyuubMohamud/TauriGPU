@@ -7,12 +7,12 @@ module icache_controller #(
     input wire logic rst,
 
     // Interface with core
-    output logic [WIDTH - 1:0] instr,
-    input logic stall, // for SFU and decode stalls
-    output logic valid, // for core to know if instruction is valid
-    input logic icache_flush, // for core to flush cache
-    input logic [ADDR_WIDTH - 1:0] set_pc, // for core to set PC
-    input logic set_pc_valid,
+    output  logic [WIDTH - 1:0] instr,
+    input   logic stall, // for SFU and decode stalls
+    output  logic valid, // for core to know if instruction is valid
+    input   logic icache_flush, // for core to flush cache
+    input   logic [ADDR_WIDTH - 1:0] set_pc, // for core to set PC
+    input   logic set_pc_valid,
 
     // Master interface
     output logic icache_a_valid,

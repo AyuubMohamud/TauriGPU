@@ -86,24 +86,48 @@ module cache (
     localparam Normal = 3'b000;
     localparam Request = 3'b001;
     localparam Response = 3'b010;
+    localparam Store = 3'b011;
     reg [2:0] cache_fsm = Normal;
 
     reg [20:0] tag [0:15];
     reg valid [0:15];
     wire [31:0] addr_select = ffs[4] ? full_address : dc_addr_i;
     wire match = tag[addr_select[10:7]]==addr_select[31:11] && valid[addr_select[10:7]];
+    wire [31:0] data;
+    reg [4:0] counter = 0;
+    wire [3:0] wr_en = {{4{(cache_fsm==Response && tcache_d_valid)||(cache_fsm==Store && tcache_d_valid && match)}}};
+    tcbram bramcache (core_clock_i, addr_select[10:2], data, wr_en, cache_fsm==Store ? dc_addr_i[10:2] : {dc_addr_i[10:7],counter}, cache_fsm==Store ? tcache_d_data : tcache_a_data);
+    assign busy = (cache_fsm!=Normal)||(cache_fsm==Normal && ((ffs[4]&!match)||(dc_valid_i&&!match)));
+    assign dc_data_o = data;
     always_ff @(posedge core_clock_i) begin
         case (cache_fsm)
             Normal: begin
                 if (ffs[4]) begin
                     if (match) begin
-                        
+                        texture_o <= data[31:8];
+                        texture_valid_o <= 0;
                     end else begin
-                        
+                        tcache_a_address <= full_address;
+                        tcache_a_corrupt <= 0;
+                        tcache_a_opcode <= 3'd4;
+                        tcache_a_size <= 4'd7;
+                        tcache_a_valid <= 1;
+                        cache_fsm <= Response;
                     end
                 end else if (dc_valid_i) begin
-                    
+                    if (!match&!dc_op_i[2]) begin
+                        tcache_a_address <= full_address;
+                        tcache_a_corrupt <= 0;
+                        tcache_a_opcode <= 3'd4;
+                        tcache_a_size <= 4'd7;
+                        tcache_a_valid <= 1;
+                        cache_fsm <= Response;
+                    end
                 end
+            end
+            Response: begin
+
+
             end
             default: begin
                 

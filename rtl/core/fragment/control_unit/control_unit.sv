@@ -50,6 +50,24 @@ module control_unit #(
 
     // Data cache control signals
 
+<<<<<<< Updated upstream:rtl/core/control_unit/control_unit.sv
+=======
+    output   wire logic [23:0]               texture_s_o,
+    output   wire logic [23:0]               texture_t_o,
+    output   wire logic                      texture_lkp_o,
+
+    input    wire logic [23:0]               texture_i,
+    input    wire logic                      texture_valid_i,
+
+    output   wire logic [31:0]               dc_addr_o,
+    output   wire logic [31:0]               dc_data_o,
+    output   wire logic [2:0]                dc_op_o,
+    output   wire logic                      dc_valid_o,
+
+    input       logic [31:0]               dc_data_i,
+    input       logic                      dc_valid_i
+
+>>>>>>> Stashed changes:rtl/core/fragment/control_unit/control_unit.sv
 );
 
     wire sfifo_full;
