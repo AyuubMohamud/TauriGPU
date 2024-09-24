@@ -84,13 +84,18 @@ module cache (
         ffs <= busy ? {ffs[3:0], texture_lkp_i} : ffs;
     end
     localparam Normal = 3'b000;
-    localparam Request = 3'b001;
+    localparam Flush = 3'b001;
     localparam Response = 3'b010;
     localparam Store = 3'b011;
     reg [2:0] cache_fsm = Normal;
 
     reg [20:0] tag [0:15];
     reg valid [0:15];
+    initial begin
+        for (integer i = 0; i < 16; i++) begin
+            tag[i] = 0; valid[i] = 0;
+        end
+    end
     wire [31:0] addr_select = ffs[4] ? full_address : dc_addr_i;
     wire match = tag[addr_select[10:7]]==addr_select[31:11] && valid[addr_select[10:7]];
     wire [31:0] data;
@@ -102,7 +107,10 @@ module cache (
     always_ff @(posedge core_clock_i) begin
         case (cache_fsm)
             Normal: begin
-                if (ffs[4]) begin
+                if (cache_flush_i) begin
+                    cache_fsm <= Flush;
+                end
+                else if (ffs[4]) begin
                     if (match) begin
                         texture_o <= data[31:8];
                         texture_valid_o <= 0;
@@ -122,12 +130,35 @@ module cache (
                         tcache_a_size <= 4'd7;
                         tcache_a_valid <= 1;
                         cache_fsm <= Response;
+                    end else if (dc_op_i[2]) begin
+                        tcache_a_address <= full_address;
+                        tcache_a_corrupt <= 0;
+                        tcache_a_opcode <= 3'd0;
+                        tcache_a_size <= 4'd2;
+                        tcache_a_valid <= 1;
+                        cache_fsm <= Store;
                     end
                 end
             end
             Response: begin
-
-
+                tcache_a_valid <= tcache_a_ready ? 1'b0 : tcache_a_valid;
+                if (tcache_d_valid) begin
+                    if (counter==5'b11111) begin
+                       tag[addr_select[10:7]] <= addr_select[31:11];
+                       valid[addr_select[10:7]] <= 1;
+                       cache_fsm <= Normal;
+                    end
+                    counter <= counter + 1;
+                end
+            end
+            Store: begin
+                tcache_a_valid <= tcache_a_ready ? 1'b0 : tcache_a_valid;
+                if (tcache_d_valid) begin
+                    cache_fsm <= Normal;
+                end
+            end
+            Flush: begin
+                
             end
             default: begin
                 
