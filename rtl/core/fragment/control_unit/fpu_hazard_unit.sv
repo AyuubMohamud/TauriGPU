@@ -5,7 +5,9 @@ module fpu_hazard_unit #(
     input logic [WIDTH-1:0] fpu_instr_i,
     input logic execute_i, // signal that indicates executed fpu instruction that cycle
 
-    output logic hazard_o
+    output logic hazard_o,
+    output logic valid_o,
+    output logic [5:0] dest_o
 );
 
     // 1 in Execution, 2 in Writeback
@@ -34,6 +36,8 @@ module fpu_hazard_unit #(
         valid_2 <= valid_1;
         dest_2 <= dest_1;
 
+        valid_o <= valid_2;
+        dest_o <= dest_2;
     end
 
     logic source_1_hazard;
@@ -43,5 +47,5 @@ module fpu_hazard_unit #(
     assign source_2_hazard = (dest_1 == source_2 && valid_1) || (dest_2 == source_2 && valid_2);
 
     assign hazard_o = source_1_hazard || source_2_hazard;
-
+    
 endmodule

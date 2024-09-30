@@ -1,14 +1,20 @@
-module fragment #(
-    parameter WIDTH = 32,
-    parameter ADDR_WIDTH = 32,
-    parameter CACHE_SIZE = 512
-) (
+module fragment (
     input wire logic clk,
     input wire logic rst,
-
+    input   wire logic [1:0]                texture_wrapS_mode_i,
+    input   wire logic [1:0]                texture_wrapT_mode_i,
+    input   wire logic [22:0]               texture_min_s_clamp_i,
+    input   wire logic [22:0]               texture_max_s_clamp_i,
+    input   wire logic [22:0]               texture_min_t_clamp_i,
+    input   wire logic [22:0]               texture_max_t_clamp_i,
+    input   wire logic [10:0]               tx_width,
+    input   wire logic [10:0]               tx_height,
+    input   wire logic [31:0]               tx_base,
     input wire logic icache_flush,
     input wire logic [31:0] set_pc,
     input wire logic set_pc_valid,
+    input wire logic  dcache_flush,
+    output wire logic dcache_resp_o,
     // Master interface
     output logic                    icache_a_valid,
     input wire logic                icache_a_ready,
@@ -16,7 +22,30 @@ module fragment #(
 
     // Slave interface
     input wire logic                icache_d_valid,
-    input wire [31:0]               icache_d_data
+    input wire [31:0]               icache_d_data,
+
+    // TileLink Bus Master Uncached Heavyweight
+    output       logic [2:0]                tcache_a_opcode,
+    output       logic [2:0]                tcache_a_param,
+    output       logic [3:0]                tcache_a_size,
+    output       logic [31:0]               tcache_a_address,
+    output       logic [3:0]                tcache_a_mask,
+    output       logic [31:0]               tcache_a_data,
+    output       logic                      tcache_a_corrupt,
+    output       logic                      tcache_a_valid,
+    input   wire logic                      tcache_a_ready,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input   wire logic [2:0]                tcache_d_opcode,
+    input   wire logic [1:0]                tcache_d_param,
+    input   wire logic [3:0]                tcache_d_size,
+    input   wire logic                      tcache_d_denied,
+    /* verilator lint_on UNUSEDSIGNAL */
+    input   wire logic [31:0]               tcache_d_data,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input   wire logic                      tcache_d_corrupt,
+    /* verilator lint_on UNUSEDSIGNAL */
+    input   wire logic                      tcache_d_valid,
+    output  wire logic                      tcache_d_ready
 );
 logic [31:0]    instr;
 logic           stall;
@@ -63,8 +92,8 @@ logic           valid;
     wire logic [31:0]               dc_data_o;
     wire logic [2:0]                dc_op_o;
     wire logic                      dc_valid_o;
-       logic [31:0]               dc_data_i;
-       logic                      dc_valid_i;
+       logic [31:0]                 dc_data_i;
+       logic                        dc_valid_i;
     control_unit ctrl0 (clk, rst, instr, valid, stall, flush, alu_a_o,
     alu_b_o,
     alu_opc_o,
@@ -116,4 +145,32 @@ logic           valid;
             fpu_result_i[((i+1)*24)-1:(i*24)]);
         end
     endgenerate
+
+    cache t_d_cache (clk, texture_wrapS_mode_i,
+    texture_wrapT_mode_i,
+    texture_min_s_clamp_i,
+    texture_max_s_clamp_i,
+    texture_min_t_clamp_i,
+    texture_max_t_clamp_i,
+    tx_width,
+    tx_height,
+    tx_base, dcache_flush,
+    dcache_resp_o, texture_s_o,
+    texture_t_o, texture_lkp_o, texture_i, texture_valid_i, dc_addr_o, dc_data_o, dc_op_o, dc_valid_o, dc_data_i, dc_valid_i,tcache_a_opcode,
+    tcache_a_param,
+    tcache_a_size,
+    tcache_a_address,
+    tcache_a_mask,
+    tcache_a_data,
+    tcache_a_corrupt,
+    tcache_a_valid,
+    tcache_a_ready,
+    tcache_d_opcode,
+    tcache_d_param,
+    tcache_d_size,
+    tcache_d_denied,
+    tcache_d_data,
+    tcache_d_corrupt,
+    tcache_d_valid,
+    tcache_d_ready);
 endmodule

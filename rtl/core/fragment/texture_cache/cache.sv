@@ -9,7 +9,6 @@ module cache (
     input   wire logic [10:0]               tx_width,
     input   wire logic [10:0]               tx_height,
     input   wire logic [31:0]               tx_base,
-    output       logic [2:0]                tx_idx,
     
     input   wire logic                      cache_flush_i,
     output  wire logic                      cache_flush_resp,
@@ -52,6 +51,8 @@ module cache (
     input   wire logic                      tcache_d_valid,
     output  wire logic                      tcache_d_ready
 );
+    assign tcache_d_ready = 1;
+    assign tcache_a_param = 0;
     wire busy;
     wire logic [14:0]               s;
     wire logic [14:0]               t;
@@ -101,9 +102,15 @@ module cache (
     wire [31:0] data;
     reg [4:0] counter = 0;
     wire [3:0] wr_en = {{4{(cache_fsm==Response && tcache_d_valid)||(cache_fsm==Store && tcache_d_valid && match)}}};
-    tcbram bramcache (core_clock_i, addr_select[10:2], data, wr_en, cache_fsm==Store ? dc_addr_i[10:2] : {dc_addr_i[10:7],counter}, cache_fsm==Store ? tcache_d_data : tcache_a_data);
+    wire [31:0] wr_data = dc_op_i[1:0]==2'b00 ? (dc_addr_i[1:0]==2'b00 ? {24'h0,dc_data_i[7:0]} : dc_addr_i[1:0]==2'b01 ? {16'h0,dc_data_i[15:8],8'h0} : 
+    dc_addr_i[1:0]==2'b10 ? {8'h0,dc_data_i[23:16],16'h0} : {dc_data_i[31:24],24'h0}) :
+                          dc_op_i[1:0]==2'b01 ? (dc_addr_i[1] ? {dc_data_i[31:16],16'h0} : {16'h0,dc_data_i[15:0]}) : dc_data_i;
+    tcbram bramcache (core_clock_i, addr_select[10:2], data, wr_en, cache_fsm==Store ? dc_addr_i[10:2] : {dc_addr_i[10:7],counter}, cache_fsm==Store ? wr_data : tcache_d_data);
     assign busy = (cache_fsm!=Normal)||(cache_fsm==Normal && ((ffs[4]&!match)||(dc_valid_i&&!match)));
-    assign dc_data_o = data;
+    assign dc_data_o = dc_op_i[1:0]==2'b00 ? dc_addr_i[1:0]==2'b00 ? {24'h0,data[7:0]} : dc_addr_i[1:0]==2'b01 ? {24'h0, data[15:8]} : dc_addr_i[1:0]==2'b10 ? {24'h0, data[23:16]} : {24'h0, data[31:24]} :
+    dc_op_i[1:0]==2'b01 ? dc_addr_i[1] ? {16'h0, data[31:16]} : {16'h0, data[15:0]} : data;
+    assign cache_flush_resp = cache_fsm!=Normal;
+    assign dc_valid_o = (cache_fsm==Store && tcache_d_valid)|(cache_fsm==Normal&&dc_valid_i&&!dc_op_i[2]&&match);
     always_ff @(posedge core_clock_i) begin
         case (cache_fsm)
             Normal: begin
@@ -113,7 +120,7 @@ module cache (
                 else if (ffs[4]) begin
                     if (match) begin
                         texture_o <= data[31:8];
-                        texture_valid_o <= 0;
+                        texture_valid_o <= 1;
                     end else begin
                         tcache_a_address <= full_address;
                         tcache_a_corrupt <= 0;
@@ -121,8 +128,10 @@ module cache (
                         tcache_a_size <= 4'd7;
                         tcache_a_valid <= 1;
                         cache_fsm <= Response;
+                        texture_valid_o <= 0;
                     end
                 end else if (dc_valid_i) begin
+                    texture_valid_o <= 0;
                     if (!match&!dc_op_i[2]) begin
                         tcache_a_address <= full_address;
                         tcache_a_corrupt <= 0;
@@ -136,8 +145,12 @@ module cache (
                         tcache_a_opcode <= 3'd0;
                         tcache_a_size <= 4'd2;
                         tcache_a_valid <= 1;
+                        tcache_a_mask <= 4'hF;
+                        tcache_a_data <= dc_data_i;
                         cache_fsm <= Store;
                     end
+                end else begin
+                    texture_valid_o <= 0;
                 end
             end
             Response: begin
@@ -158,12 +171,15 @@ module cache (
                 end
             end
             Flush: begin
-                
+                counter <= counter + 1;
+                if (counter==5'b01111) begin
+                    cache_fsm <= Normal;
+                end
+                valid[counter[3:0]] <= 0;
             end
             default: begin
                 
             end
         endcase
     end
-
 endmodule
