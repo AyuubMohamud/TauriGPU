@@ -1,69 +1,59 @@
-from os import getenv, environ, path
+import sys, shutil
 from pathlib import Path
-from cocotb.runner import get_runner
-from typing import Any
-import xml.etree.ElementTree as ET
-import sys
-import shutil
-from time import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from copy import deepcopy
-import inspect
-import re
+from os import getenv, environ
 
-def get_results(results_file: Path):
-    if not results_file.exists():
-        print(f"Results file not found: {results_file}")
-        return 0, 1
-    tree = ET.parse(results_file)
-    root = tree.getroot()
-    num_tests = int(root.attrib['tests'])
-    fail = int(root.attrib['failures'])
-    return num_tests, fail
+from cocotb.runner import get_runner
+
+from mods.logging_mods import *
+
 
 def single_test(
-    i: int,  # id
-    deps: list[str],
-    module: str,
-    test_module: str,
-    module_params: dict,
-    module_path: Path,
-    comp_path: Path,
-    test_work_dir: Path,
-    test_dir: Path,
-    extra_build_args: list[str] = [],
-    seed: int = None,
-    trace: bool = False,
-    skip_build: bool = False,
+    test_id: int,               # Test identifier
+    dependencies: list[str],    # List of dependencies
+    top_module: str,            # Top module name
+    test_module: str,           # Cocotb test module name
+    module_params: dict,        # Parameters for the module
+    module_path: Path,          # Path to the module file
+    component_path: Path,       # Path to the component files
+    sim_build_dir: Path,        # Working directory for the test
+    test_files_dir: Path,       # Directory with the python testbench files
+    extra_build_args: list[str] = [],  # Extra build arguments for the build process
+    seed: int = None,           # Random seed for the test
+    enable_trace: bool = False, # Enable waveform trace
+    skip_build: bool = False,   # Skip the build process if True
 ):
-    print("# ---------------------------------------")
-    print(f"# Test {i}")
-    print("# ---------------------------------------")
+    print(f"# ---------------------------------------")
+    print(f"# Test {test_id}")
+    print(f"# ---------------------------------------")
     print(f"# Parameters:")
-    print(f"# - {'Test Index'}: {i}")
-    for k, v in module_params.items():
-        print(f"# - {k}: {v}")
+    print(f"# - {'Test Index'}: {test_id}")
+    for param_name, param_value in module_params.items():
+        print(f"# - {param_name}: {param_value}")
     print("# ---------------------------------------")
     
     # Gather all Verilog files in the module directory and its subdirectories
     verilog_sources = [str(p) for p in Path(module_path).parent.glob('**/*.sv')]
-    print(f"Verilog sources: {verilog_sources}")
+    print(f"Verilog sources:")
+    print_list(verilog_sources)
     
-    # Add the test directory to Python's sys.path
-    sys.path.append(str(test_dir))
-    print(f"Added to Python path: {test_dir}")
+    # Add the test files' directory to Python's sys.path
+    sys.path.append(str(test_files_dir))
+    print(f"Added to Python path: {test_files_dir}")
     
     # Set environment variables to control file output locations
-    environ['PYTHONPYCACHEPREFIX'] = str(test_work_dir / '__pycache__')
-    environ['GMON_OUT_PREFIX'] = str(test_work_dir)
+    environ['PYTHONPYCACHEPREFIX'] = str(sim_build_dir / '__pycache__')
+    environ['GMON_OUT_PREFIX'] = str(sim_build_dir)
     
+    # Initialize the Verilator simulation runner
     runner = get_runner(getenv("SIM", "verilator"))
+    # Build the simulation unless skipping the build
     if not skip_build:
         try:
             runner.build(
                 verilog_sources=verilog_sources,
-                includes=[str(comp_path.joinpath(f"{d}/rtl/")) for d in deps] + [str(Path(module_path).parent)],
-                hdl_toplevel=module,
+                includes=[str(component_path.joinpath(f"{d}/rtl/")) for d in dependencies]
+                          + [str(Path(module_path).parent)] + ['/home/xl562/3dgs/3DGS/hardware/rtl/vru'],
+                hdl_toplevel=top_module,
                 build_args=[
                     "-Wno-GENUNNAMED",
                     "-Wno-WIDTHEXPAND",
@@ -72,7 +62,6 @@ def single_test(
                     "-prof-c",
                     "--assert",
                     "--stats",
-                    *(["--trace-fst", "--trace-structs"] if trace else []),
                     "-O2",
                     "-build-jobs",
                     "8",
@@ -82,40 +71,35 @@ def single_test(
                     *extra_build_args,
                 ],
                 parameters=module_params,
-                build_dir=test_work_dir,
+                build_dir=sim_build_dir,
+                waves=enable_trace
             )
-        except Exception as e:
-            print(f"Error occurred during build: {e}")
+        except Exception as build_error:
+            print(f"Error occurred during build: {build_error}")
             return {
                 "num_tests": 0,
                 "failed_tests": 1,
                 "params": module_params,
-                "error": str(e)
+                "error": str(build_error)
             }
-    
+
+    # Run the test
     try:
         runner.test(
-            hdl_toplevel=module,
+            hdl_toplevel=top_module,
             hdl_toplevel_lang="verilog",
             test_module=test_module,
             seed=seed,
-            results_xml=str(test_work_dir / "results.xml"),
-            build_dir=test_work_dir,
-            test_dir=str(test_dir),
+            results_xml=str(sim_build_dir / "results.xml"),
+            build_dir=sim_build_dir,
+            test_dir=str(test_files_dir),
+            waves=enable_trace
         )
-        num_tests, fail = get_results(test_work_dir / "results.xml")
         
-        # Move gmon.out if it exists in test_dir
-        gmon_src = test_dir / "gmon.out"
+        # Move profiling output if it exists
+        gmon_src = test_files_dir / "gmon.out"
         if gmon_src.exists():
-            shutil.move(str(gmon_src), str(test_work_dir / "gmon.out"))
+            shutil.move(str(gmon_src), str(sim_build_dir / "gmon.out"))
         
-    except Exception as e:
-        print(f"Error occurred while running Verilator simulation: {e}")
-        num_tests, fail = 0, 1
-    
-    return {
-        "num_tests": num_tests,
-        "failed_tests": fail,
-        "params": module_params,
-    }
+    except Exception as build_error:
+        print(f"Error occurred while running Verilator simulation: {build_error}")

@@ -2,3 +2,4 @@ tb/sim_build/*
 tb/sim_build.*
 tb/test/core/fpu/dump.fst*
 tb/__pycache__/*
+.venv
