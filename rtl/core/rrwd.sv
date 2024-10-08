@@ -1,39 +1,35 @@
-module rrwd #(parameter NoR = 2, parameter NoS = 4, parameter FW = 64) (
+module rrwd #(parameter NoR = 2, parameter NoS = 4, parameter FW = 64, parameter DW = 24) (
     input   wire logic                  core_clock_i,
     input   wire logic                  core_reset_i,
 
-    input   wire logic [12*(NoR)-1:0]   integer_x_i,
-    input   wire logic [12*(NoR)-1:0]   integer_y_i,
+    input   wire logic [DW*(NoR)-1:0]   data_i,
     input   wire logic [NoR-1:0]        enqueue_pixel_i,
     output  wire logic [NoR-1:0]        full_o,
 
     input   wire logic [NoS-1:0]        thrend_state_i, // thrend means there is no explicit thread running
     output  wire logic [NoS-1:0]        reset_o, // start thread go to idle, start icache at new pc etc
-    output  wire logic [11:0]           int_coord_x_o,
-    output  wire logic [11:0]           int_coord_y_o,
+    output  wire logic [DW-1:0]         data_o,
     output  wire logic [NoS-1:0]        write_coords_o
 );
     // Number of shaders is actually number of shader **THREADS** very important distinction
     wire [NoR-1:0] read_fifo;
-    wire logic [12*(NoR)-1:0]   integer_x;
-    wire logic [12*(NoR)-1:0]   integer_y;
+    wire logic [DW*(NoR)-1:0]   data;
     wire [NoR-1:0] empty_fifo;
 
     for (genvar i = 0; i < NoR; i++) begin : _instatiate_fifos_for_raster_outs
-        sfifo #(FW, 24) sfifo_inst (core_clock_i, core_reset_i, enqueue_pixel_i[i], {integer_x_i[12*(i+1)-1:12*(i)],
-        integer_y_i[12*(i+1)-1:12*(i)]}, full_o[i], read_fifo[i], {integer_x[12*(i+1)-1:12*(i)],
-        integer_y[12*(i+1)-1:12*(i)]}, empty_fifo[i]);
+        sfifo #(FW, DW) sfifo_inst (core_clock_i, core_reset_i, enqueue_pixel_i[i], data_i[DW*(i+1)-1:DW*i], full_o[i], read_fifo[i],
+        data[DW*(i+1)-1:DW*i], empty_fifo[i]);
     end
     
     // Look for next free shader
-    reg [NoS-1:0] current_shader_bitvec = 0;
+    reg [NoS-1:0] current_shader_bitvec = '1;
     logic found_free;
     logic [NoS-1:0] shader_bitvec;
     always_comb begin
         shader_bitvec = 0;
         found_free = 0;
         for (integer x = 0; x < NoS; x++) begin
-            if (thrend_state_i[x]&!found_free) begin
+            if (thrend_state_i[x]&!found_free&!current_shader_bitvec[x]) begin
                 found_free = 1;
                 shader_bitvec[x] = 1;
             end
@@ -49,35 +45,28 @@ module rrwd #(parameter NoR = 2, parameter NoS = 4, parameter FW = 64) (
     
     **/
 
-    wire [11:0] integer_x_array [0:NoR-1];
-    wire [11:0] integer_y_array [0:NoR-1];
+    wire [DW-1:0] data_array [0:NoR-1];
 
     for (genvar i = 0; i < NoR; i++) begin : transform
-        assign integer_x_array[i] = integer_x[12*(i+1)-1:12*i];
-        assign integer_y_array[i] = integer_y[12*(i+1)-1:12*i];
+        assign data_array[i] = data[DW*(i+1)-1:DW*i];
     end
-
     logic [NoR-1:0] selected_fifo;
     logic breakout;
-    logic [11:0] selected_x;
-    logic [11:0] selected_y;
+    logic [DW-1:0] selected_data;
     always_comb begin
         selected_fifo = 0;
         breakout = 0;
-        selected_x = 'x;
-        selected_y = 'x;
+        selected_data = 'x;
         for (integer x = 0; x < NoR; x++) begin
             if (!empty_fifo[x]&!breakout) begin
                 breakout = 1;
                 selected_fifo[x] = 1;
-                selected_x = integer_x_array[x];
-                selected_y = integer_y_array[x];
+                selected_data = data_array[x];
             end
         end
     end
     assign read_fifo = {NoR{found_free}}&selected_fifo;
-    assign int_coord_x_o = selected_x;
-    assign int_coord_y_o = selected_y;
+    assign data_o = selected_data;
     assign write_coords_o = current_shader_bitvec&{thrend_state_i}&{NoS{breakout}};
     assign reset_o = current_shader_bitvec&{thrend_state_i}&{NoS{breakout}};
 endmodule
