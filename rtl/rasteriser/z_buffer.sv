@@ -22,6 +22,7 @@ module z_buffer #(
     input logic [Z_SIZE-1:0] pixel_z_i,
     input logic [2:0] z_depth_func_i,
 
+    output logic flush_done_o,
     output logic depth_pass_o,                      // render
     output logic done_o
 );
@@ -38,7 +39,6 @@ module z_buffer #(
     */
 
     // Signals
-    logic flush_done;
     logic need_update;
     logic update_complete;
     
@@ -89,7 +89,7 @@ module z_buffer #(
         case (curr_state)
             IDLE: next_state = start_i ? RENDER : IDLE;
             RENDER: next_state = update_complete ? (flush_i ? FLUSH : DONE) : RENDER;
-            FLUSH: next_state = flush_done ? DONE : FLUSH;
+            FLUSH: next_state = flush_done_o ? DONE : FLUSH;
             DONE: next_state = IDLE;
         endcase
     end
@@ -103,7 +103,7 @@ module z_buffer #(
         end
 
         if (curr_state == IDLE) begin
-            flush_done <= 0;
+            flush_done_o <= 0;
             update_complete <= 0;
         end
 
@@ -128,13 +128,13 @@ module z_buffer #(
                         z_buffer_array[x][y].z <= 8'd255;
                     end
                 end
-                flush_done <= 1;
+                flush_done_o <= 1;
             end
         end
 
         // Done state
-        if (curr_state == DONE) begin // ** might want another signal
-            done_o <= 1;            
+        if (curr_state == DONE) begin
+            done_o <= 1;
         end else begin
             done_o <= 0;
         end

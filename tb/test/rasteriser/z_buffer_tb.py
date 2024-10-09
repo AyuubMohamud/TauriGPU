@@ -3,6 +3,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from tqdm import tqdm
 import numpy as np
+import sys
 
 from mods.logging_mods import *
 from mods.quantization_mods import *
@@ -44,6 +45,10 @@ class SoftwareZBuffer:
 @cocotb.test()
 async def test_z_buffer(dut):
     """Randomized testing for the Z-buffer module"""
+
+    # Redirect output to log.txt
+    log_file = open('log.txt', 'w')
+    sys.stdout = log_file
 
     test_iters = 1000
     color_log(dut, f'Running test_z_buffer() with test_iters = {test_iters}')
@@ -104,7 +109,7 @@ async def test_z_buffer(dut):
         print('----------------')
 
         if (dut.curr_buffer_z.value == 255):
-            color_log(dut, f'THE HW BUFFER IS AT 255!!!', log_error=True)
+            color_log(dut, f'THE HW BUFFER IS AT 255!!!')
             iter_255.append(test_count)
 
         # Apply inputs to DUT
@@ -157,21 +162,28 @@ async def test_z_buffer(dut):
 
         print(f'current hw buffer value: {int(dut.curr_buffer_z.value)}')
 
+        # Occasionally test flushing
+        if np.random.random() < 0.01:  # 1% chance of flush
+            color_log(dut, f'Flushing the z-buffer...')
+            dut.flush_i.value = 1
+            sw_z_buffer.flush()
+            flush.append(test_count)
+
+            while dut.flush_done_o.value == 0:
+                await RisingEdge(dut.clk_i)
+                curr_state = int(dut.curr_state.value)
+                print(f'curr_state: {states.get(curr_state, "UNKNOWN")}')
+            
+            if dut.flush_done_o.value == 1:
+                dut.flush_i.value = 0
+                print(f'Flush done')
+
         while dut.done_o.value == 0:
             await RisingEdge(dut.clk_i)
             curr_state = int(dut.curr_state.value)
             print(f'curr_state: {states.get(curr_state, "UNKNOWN")}')
             print(f'Update complete: {int(dut.update_complete.value)}')
             print(f'Depth_pass_o: {int(dut.depth_pass_o.value)}')
-
-        # Occasionally test flushing
-        if np.random.random() < 0.01:  # 1% chance to flush
-            dut.flush_i.value = 1
-            await RisingEdge(dut.clk_i)
-            dut.flush_i.value = 0
-            await RisingEdge(dut.clk_i)
-            sw_z_buffer.flush()
-            flush.append(test_count)
         
         print(f'current hw buffer value: {int(dut.curr_buffer_z.value)}')
         print(f'current sw buffer value: {sw_z_buffer.buffer[pixel_x, pixel_y]}')
@@ -184,3 +196,5 @@ async def test_z_buffer(dut):
     color_log(dut, f'\nZ-buffer test completed successfully for {test_iters} iterations.')
     color_log(dut, f'Iterations where HW buffer was 255: {iter_255}')
     color_log(dut, f'Iterations where flush was called: {flush}')
+
+    log_file.close()
