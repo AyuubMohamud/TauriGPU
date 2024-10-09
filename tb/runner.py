@@ -7,12 +7,34 @@ from mods.exception_mods import *
 
 compute_unit_name = 'rasteriser'
 
-def move_file(test_dir:str, module_under_test:str) -> str:
-    """ Moves the file into the waves folder, 
-    and renames it as e.g. 240923_110745_terminate"""
+def move_file(test_dir: str, module_under_test: str) -> str:
+    """ Moves the current dump.vcd file into the waves folder as 'dump.vcd', 
+    also saves a copy with a timestamp for record keeping. """
+    
+    waves_dir = test_dir / 'waves'
+    waves_dir.mkdir(parents=True, exist_ok=True)  # Ensure waves directory exists
+    
+    # Paths for the current dump.vcd and the destination dump.vcd
+    src_vcd = test_dir / compute_unit_name / 'dump.vcd'
+    dest_vcd = waves_dir / 'dump.vcd'
+    
+    # Move the current dump.vcd to the waves folder as "dump.vcd"
+    shutil.move(src_vcd, dest_vcd)
+    
+    # Generate a unique filename based on the current timestamp and module
+    timestamped_filename = datetime.now().strftime('%y%m%d_%H%M%S_') + module_under_test + '.vcd'
+    timestamped_vcd = waves_dir / timestamped_filename
+    
+    # Copy the dump.vcd to create a timestamped version
+    shutil.copy(dest_vcd, timestamped_vcd)
+    
+    # Log the timestamped file name for record keeping
+    record_file = waves_dir / 'record.txt'
+    with record_file.open('a') as record:
+        record.write(f'{timestamped_filename}\n')  # Append the timestamped file name to the record
+    
+    print(f'Waveform {timestamped_filename} saved and recorded.')
 
-    filename = datetime.now().strftime('%y%m%d_%H%M%S_') + module_under_test + '.vcd'
-    shutil.move(test_dir / compute_unit_name / 'dump.vcd', test_dir / 'waves' / filename)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Cocotb Verilator runner')
@@ -22,10 +44,9 @@ if __name__ == '__main__':
     module_under_test = args.n
     enable_trace = bool(args.t)
 
-
     # Get the current directory
     current_dir = Path(__file__).parent     # ./hardware/tb
-    project_dir = current_dir.parent    # ./hardware
+    project_dir = current_dir.parent        # ./hardware
     test_dir = current_dir / 'test'
     sim_build_dir = current_dir / 'sim_build'
 

@@ -60,16 +60,6 @@ async def test_z_buffer(dut):
     clock = Clock(dut.clk_i, 10, units='ns')
     cocotb.start_soon(clock.start())
 
-    # Reset DUT
-    dut.start_i.value = 0
-    dut.flush_i.value = 0
-    dut.pixel_x_i.value = 0
-    dut.pixel_y_i.value = 0
-    dut.pixel_z_i.value = 0
-    dut.z_depth_func_i.value = 0
-    await RisingEdge(dut.clk_i)
-    await RisingEdge(dut.clk_i)
-
     # Test different depth functions
     z_depth_funcs = {
         "GL_NEVER": 0b000,
@@ -82,12 +72,40 @@ async def test_z_buffer(dut):
         "GL_ALWAYS": 0b111,
     }
 
+    states = {
+        0: "IDLE",
+        1: "RENDER",
+        2: "FLUSH",
+        3: "DONE",
+    }
+
+    for _ in range(10):
+        await RisingEdge(dut.clk_i)
+
+    iter_255 = []
+    flush = []
+    mismatch = {}
+
     for test_count in tqdm(range(test_iters)):
         # Generate random test case
         pixel_x = np.random.randint(0, X_RES)
         pixel_y = np.random.randint(0, Y_RES)
         pixel_z = np.random.randint(0, 1 << Z_SIZE)
         z_depth_func = np.random.choice(list(z_depth_funcs.values()))
+        # z_depth_func = 0b001 # test GL_LESS only
+
+        print('----------------------------------')
+        print(f'Iteration: {test_count}')
+        print('----------------------------------')
+        print(f'pixel_x: {pixel_x}')
+        print(f'pixel_y: {pixel_y}')
+        print(f'sw buffer value: {sw_z_buffer.buffer[pixel_x, pixel_y]}')
+        print(f'corresponding z_depth_func: {list(z_depth_funcs.keys())[list(z_depth_funcs.values()).index(z_depth_func)]}')
+        print('----------------')
+
+        if (dut.curr_buffer_z.value == 255):
+            color_log(dut, f'THE HW BUFFER IS AT 255!!!', log_error=True)
+            iter_255.append(test_count)
 
         # Apply inputs to DUT
         dut.start_i.value = 1
@@ -96,15 +114,24 @@ async def test_z_buffer(dut):
         dut.pixel_z_i.value = int(pixel_z)
         dut.z_depth_func_i.value = int(z_depth_func)
 
-        # Wait for DUT to process
         await RisingEdge(dut.clk_i)
-        await RisingEdge(dut.clk_i)
+
+        print(f'hw buffer value: {int(dut.curr_buffer_z.value)}')
+        print(f'pixel_z_i: {int(dut.pixel_z_i.value)}')
+        print(f'start_i: {int(dut.start_i.value)}')
+        print('----------------')
 
         # Read DUT output
         depth_pass_dut = bool(dut.depth_pass_o.value)
+        print(f'depth_pass_o: {depth_pass_dut}')
 
         # Compute expected result using software z-buffer
         depth_pass_sw = sw_z_buffer.test_depth(pixel_x, pixel_y, pixel_z, z_depth_func)
+        print(f'depth_pass_sw: {depth_pass_sw}')
+
+        # Other signals
+        curr_state = int(dut.curr_state.value)
+        print(f'curr_state: {states.get(curr_state, "UNKNOWN")}')
 
         # Compare results
         if depth_pass_dut != depth_pass_sw:
@@ -116,11 +143,26 @@ async def test_z_buffer(dut):
             color_log(dut, f'')
             color_log(dut, f'DUT depth_pass: {depth_pass_dut}', log_error=True)
             color_log(dut, f'Expected depth_pass: {depth_pass_sw}', log_error=True)
+
+            color_log(dut, f'Iterations where HW buffer was 255: {iter_255}')
+            color_log(dut, f'Iterations where flush was called: {flush}')
+            color_log(dut, f'Iterations where mismatch occurred: {mismatch}')
+
             assert False, "Mismatch between DUT and software z-buffer"
 
         # Update software z-buffer if depth test passed
         if depth_pass_sw:
             sw_z_buffer.update(pixel_x, pixel_y, pixel_z)
+            print(f'Updated sw buffer value at {pixel_x}, {pixel_y} to {sw_z_buffer.buffer[pixel_x, pixel_y]}')
+
+        print(f'current hw buffer value: {int(dut.curr_buffer_z.value)}')
+
+        while dut.done_o.value == 0:
+            await RisingEdge(dut.clk_i)
+            curr_state = int(dut.curr_state.value)
+            print(f'curr_state: {states.get(curr_state, "UNKNOWN")}')
+            print(f'Update complete: {int(dut.update_complete.value)}')
+            print(f'Depth_pass_o: {int(dut.depth_pass_o.value)}')
 
         # Occasionally test flushing
         if np.random.random() < 0.01:  # 1% chance to flush
@@ -129,5 +171,16 @@ async def test_z_buffer(dut):
             dut.flush_i.value = 0
             await RisingEdge(dut.clk_i)
             sw_z_buffer.flush()
+            flush.append(test_count)
+        
+        print(f'current hw buffer value: {int(dut.curr_buffer_z.value)}')
+        print(f'current sw buffer value: {sw_z_buffer.buffer[pixel_x, pixel_y]}')
+
+        if (int(dut.curr_buffer_z.value) != sw_z_buffer.buffer[pixel_x, pixel_y]):
+            # assert False, "Mismatch between DUT and software z-buffer"
+            mismatch[test_count] = (pixel_x, pixel_y)
+
 
     color_log(dut, f'\nZ-buffer test completed successfully for {test_iters} iterations.')
+    color_log(dut, f'Iterations where HW buffer was 255: {iter_255}')
+    color_log(dut, f'Iterations where flush was called: {flush}')
