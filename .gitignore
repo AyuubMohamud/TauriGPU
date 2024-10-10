@@ -2,3 +2,6 @@ tb/sim_build/*
 tb/sim_build.*
 tb/test/core/fpu/dump.fst*
 tb/__pycache__/*
+.venv
+tb/test/waves/*
+tb/test/rasteriser/log.txt
