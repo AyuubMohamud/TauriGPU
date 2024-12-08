@@ -5,3 +5,5 @@ tb/__pycache__/*
 .venv
 tb/test/waves/*
 tb/test/rasteriser/log.txt
+tb/__pycache__
+tb/mods/__pycache__

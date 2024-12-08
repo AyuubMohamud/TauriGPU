@@ -5,7 +5,7 @@ from datetime import datetime
 from single_test import single_test
 from mods.exception_mods import *
 
-compute_unit_name = 'rasteriser'
+compute_unit_name = 'core/preprocessing'
 
 def move_file(test_dir: str, module_under_test: str) -> str:
     """ Moves the current dump.vcd file into the waves folder as 'dump.vcd', 
