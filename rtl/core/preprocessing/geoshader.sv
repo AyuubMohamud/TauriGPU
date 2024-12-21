@@ -358,10 +358,10 @@ module geoshader #(
         .v1_x_i(v1_x_fifo1), .v1_y_i(v1_y_fifo1), .v1_z_i(v1_z_fifo1), .v1_w_i(v1_w_fifo1),
         .v2_x_i(v2_x_fifo1), .v2_y_i(v2_y_fifo1), .v2_z_i(v2_z_fifo1), .v2_w_i(v2_w_fifo1),
 
-        .plane_a_i(curr_plane_a),
-        .plane_b_i(curr_plane_b),
-        .plane_c_i(curr_plane_c),
-        .plane_d_i(curr_plane_d),
+        .plane_normal_x_i(curr_plane_a),
+        .plane_normal_y_i(curr_plane_b),
+        .plane_normal_z_i(curr_plane_c),
+        .plane_offset_i(curr_plane_d),
 
         .clipped_v0_x_o(v0_x_fifo2_t1), .clipped_v0_y_o(v0_y_fifo2_t1), .clipped_v0_z_o(v0_z_fifo2_t1), .clipped_v0_w_o(v0_w_fifo2_t1),
         .clipped_v1_x_o(v1_x_fifo2_t1), .clipped_v1_y_o(v1_y_fifo2_t1), .clipped_v1_z_o(v1_z_fifo2_t1), .clipped_v1_w_o(v1_w_fifo2_t1),
