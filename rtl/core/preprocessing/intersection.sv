@@ -40,7 +40,7 @@ module intersection #(
     logic [$clog2(NEWTON_ITERATIONS):0] iteration_count;
 
     always_ff @(posedge clk_i) begin
-        if (start_i)
+        if (!start_i)
             state <= IDLE;
         else
             state <= next_state;
