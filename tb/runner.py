@@ -6,6 +6,7 @@ from datetime import datetime
 from single_test import single_test
 from mods.exception_mods import *
 
+
 def move_file(test_dir: Path, compute_unit_name: str, module_under_test: str) -> None:
     """
     Moves the current dump.vcd file into the waves folder as 'dump.vcd',
@@ -41,6 +42,7 @@ def move_file(test_dir: Path, compute_unit_name: str, module_under_test: str) ->
 
     print(f'Waveform {timestamped_filename} saved and recorded.')
 
+
 def main():
     parser = argparse.ArgumentParser(description='Cocotb Verilator runner')
     parser.add_argument('-n', '--name', type=str, required=True, 
@@ -59,8 +61,9 @@ def main():
     test_dir = current_dir / 'test'
     sim_build_dir = current_dir / 'sim_build'
 
-    # 1) SEARCH FOR {module_under_test}.sv under the ./rtl directory
-    #    This will locate the path to the .sv file and extract the subdirectory as compute_unit_name
+    # ----------------------------------------------------------------
+    # 1) SEARCH for {module_under_test}.sv under the ./rtl directory
+    # ----------------------------------------------------------------
     sv_file_path = None
     for candidate in rtl_dir.rglob(f'{module_under_test}.sv'):
         if candidate.is_file():
@@ -72,13 +75,40 @@ def main():
             f"Cannot find {module_under_test}.sv anywhere under {rtl_dir}."
         )
 
-    # 2) Extract the 'compute unit' folder path relative to rtl/
-    #    e.g., if sv_file_path = /path/to/rtl/core/preprocessing/intersection.sv
-    #    then compute_unit_name = "core/preprocessing"
+    # Extract the 'compute unit' folder path relative to rtl/
+    # e.g. if found /path/to/rtl/core/preprocessing/intersection.sv
+    # => compute_unit_name = "core/preprocessing"
     compute_unit_path = sv_file_path.parent.relative_to(rtl_dir)
-    compute_unit_name = str(compute_unit_path)  # e.g., core/preprocessing
+    compute_unit_name = str(compute_unit_path)
 
-    # Remove previous sim_build.* and dump.vcd
+    # ----------------------------------------------------------------
+    # 2) SEARCH for {module_under_test}_tb.py under the ./test folder
+    # ----------------------------------------------------------------
+    # We'll transform the discovered .py path into a single-level module
+    # name by replacing "/" with "_". For example:
+    #   test/core/preprocessing/intersection_tb.py
+    # => core_preprocessing_intersection_tb
+    py_testbench_file = None
+    for candidate in test_dir.rglob(f'{module_under_test}_tb.py'):
+        if candidate.is_file():
+            py_testbench_file = candidate
+            break
+
+    if py_testbench_file is None:
+        # Fallback: If no testbench file is found, just use {module_under_test}_tb
+        # which means the user might have intersection_tb.py in the current directory
+        # or on PYTHONPATH, etc.
+        print(f"Warning: Cannot find {module_under_test}_tb.py under {test_dir}.")
+        test_module_name = f"{module_under_test}_tb"
+    else:
+        test_module_name = py_testbench_file.stem
+
+        print(f"Found Python testbench at: {py_testbench_file}")
+        print(f"Using single-level module name = '{test_module_name}'")
+
+    # ----------------------------------------------------------------
+    # Cleanup Phase
+    # ----------------------------------------------------------------
     dump_vcd = test_dir / compute_unit_name / 'dump.vcd'
     if dump_vcd.exists():
         dump_vcd.unlink()
@@ -93,20 +123,20 @@ def main():
     # Ensure sim_build_dir exists
     sim_build_dir.mkdir(parents=True, exist_ok=True)
 
-    # 3) Construct the path to the module for simulation
-    module_path = sv_file_path  # We already know the .sv file exact path
-    component_path = sv_file_path.parent        # folder containing the .sv
+    # Construct the path to the module .sv and relevant paths
+    module_path = sv_file_path
+    component_path = sv_file_path.parent
     test_files_dir = test_dir / compute_unit_name
-
-    # Additional module parameters can be specified here
     module_params = {}
 
-    # 4) Invoke the single_test function
+    # ----------------------------------------------------------------
+    # 3) Invoke the single_test function
+    # ----------------------------------------------------------------
     single_test(
         test_id=1,
         dependencies=[compute_unit_name],
         top_module=module_under_test,
-        test_module=f'{module_under_test}_tb',
+        test_module=test_module_name,  # Use flattened naming approach
         module_params=module_params,
         module_path=module_path,
         component_path=component_path,
@@ -115,7 +145,7 @@ def main():
         enable_trace=enable_trace,
     )
 
-    # 5) Move the VCD file after simulation completes if tracing is enabled
+    # 4) Move the VCD file after simulation completes if tracing is enabled
     if enable_trace:
         move_file(test_dir, compute_unit_name, module_under_test)
 

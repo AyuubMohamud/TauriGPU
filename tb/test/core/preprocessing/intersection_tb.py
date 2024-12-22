@@ -14,12 +14,6 @@ async def test_intersection_module(dut):
     clock = Clock(dut.clk_i, 10, units='ns')  # 100 MHz
     cocotb.start_soon(clock.start())
 
-    # Reset logic if necessary
-    dut.reset_i.value = 1
-    await RisingEdge(dut.clk_i)
-    dut.reset_i.value = 0
-    await RisingEdge(dut.clk_i)
-
     # Define the number of test iterations
     test_iters = 1000
 
