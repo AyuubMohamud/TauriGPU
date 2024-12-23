@@ -64,7 +64,7 @@ module genpix (
         case (rasterizer_state)
             IDLE: begin
                 if (valid_i) begin
-                    rasterizer_state <= IDLE;
+                    rasterizer_state <= PIXEL_OUT;
                     w0 <= w0_row_i;
                     w1 <= w1_row_i;
                     w2 <= w2_row_i;

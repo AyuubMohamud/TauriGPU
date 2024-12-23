@@ -5,3 +5,4 @@ tb/__pycache__/*
 .venv
 tb/test/waves/*
 tb/test/rasteriser/log.txt
+obj_dir

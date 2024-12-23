@@ -9,25 +9,25 @@ module setup (
     input   wire logic                  clock_i,
     input   wire logic                  reset_i,
     
-    input   wire logic [15:0]           a_x_i,
-    input   wire logic [15:0]           a_y_i,
-    input   wire logic [15:0]           b_x_i,
-    input   wire logic [15:0]           b_y_i,
-    input   wire logic [15:0]           c_x_i,
-    input   wire logic [15:0]           c_y_i,
+    input   wire logic signed [15:0]    a_x_i,
+    input   wire logic signed [15:0]    a_y_i,
+    input   wire logic signed [15:0]    b_x_i,
+    input   wire logic signed [15:0]    b_y_i,
+    input   wire logic signed [15:0]    c_x_i,
+    input   wire logic signed [15:0]    c_y_i,
     input   wire logic                  valid_i,
     output  wire logic                  busy_o,
 
-    output       logic [23:0]           area_o, // 20.4 (unsigned)
-    output       logic [16:0]           dl_w0_col_o,
-    output       logic [16:0]           dl_w1_col_o,
-    output       logic [16:0]           dl_w2_col_o,
-    output       logic [16:0]           dl_w0_row_o,
-    output       logic [16:0]           dl_w1_row_o,
-    output       logic [16:0]           dl_w2_row_o,
-    output       logic [24:0]           w0_row_o, // s.20.4
-    output       logic [24:0]           w1_row_o, // s.20.4
-    output       logic [24:0]           w2_row_o, // s.20.4
+    output       logic signed [23:0]    area_o, // 20.4 (unsigned)
+    output       logic signed [16:0]    dl_w0_col_o,
+    output       logic signed [16:0]    dl_w1_col_o,
+    output       logic signed [16:0]    dl_w2_col_o,
+    output       logic signed [16:0]    dl_w0_row_o,
+    output       logic signed [16:0]    dl_w1_row_o,
+    output       logic signed [16:0]    dl_w2_row_o,
+    output       logic signed [24:0]    w0_row_o, // s.20.4
+    output       logic signed [24:0]    w1_row_o, // s.20.4
+    output       logic signed [24:0]    w2_row_o, // s.20.4
     output       logic [11:0]           x_min_o,
     output       logic [11:0]           y_min_o,
     output       logic [11:0]           x_max_o,
@@ -49,41 +49,41 @@ module setup (
     wire [24:0] w1_row;
     wire [24:0] w2_row;
     /* verilator lint_off unused */
-    wire [33:0] area;
-    wire [33:0] w0_row_l;
-    wire [33:0] w1_row_l;
-    wire [33:0] w2_row_l;
+    wire [34:0] area;
+    wire [34:0] w0_row_l;
+    wire [34:0] w1_row_l;
+    wire [34:0] w2_row_l;
     /* verilator lint_on unused */
-    function static [11:0] min3;
-        input [11:0] a, b, c;
+    function automatic [11:0] min3;
+        input signed [11:0] a, b, c;
         logic a_less_b = $signed(a)<$signed(b);
         logic b_less_c = $signed(b)<$signed(c);
-        assign min3 = a_less_b&!b_less_c ? a : b_less_c ? b : c;
+        assign min3 = a_less_b&b_less_c ? a : b_less_c ? b : c;
     endfunction
-    function static [11:0] max3;
-        input [11:0] a, b, c;
+    function automatic [11:0] max3;
+        input signed [11:0] a, b, c;
         logic a_more_b = $signed(a)>$signed(b);
         logic b_more_c = $signed(b)>$signed(c);
         assign max3 = a_more_b&b_more_c ? a : b_more_c ? b : c;
     endfunction
-    function static [15:0] get_bias;
-        input [15:0] st_x, st_y, ed_x, ed_y;
+    function automatic [15:0] get_bias;
+        input signed [15:0] st_x, st_y, ed_x, ed_y;
         logic [16:0] e_x = ed_x - st_x;
         logic [16:0] e_y = ed_y - st_y;
         assign get_bias = (e_x==0)||(e_y==0) ? '0 : LOWINC;
     endfunction
-    function static [33:0] edge_cross;
-        input [15:0] a_x, a_y, b_x, b_y, c_x, c_y;
+    function automatic [34:0] edge_cross;
+        input signed [15:0] a_x, a_y, b_x, b_y, c_x, c_y;
         assign edge_cross = ($signed(b_x - a_x)*$signed(c_y-a_y)) - 
         ($signed(b_y-a_y)*$signed(c_x-a_x));
     endfunction
     
     assign area = edge_cross(a_x_i, a_y_i,
-     b_x_i, b_y_i, c_x_i, c_y_i);
+     b_x_i, b_y_i, c_x_i, c_y_i); //! IMPORTANT NOTE: THIS IS AREA * 2, this is ok to divide the barycentric coordinates by however
     
     // s.11.4 + s.11.4 -> s.12.4
-    // s.12.4 * s.12.4 -> s.24.8
-    // s.24.8 + s.24.8 -> s.25.8
+    // s.12.4 * s.12.4 -> s.25.8
+    // s.25.8 + s.25.8 -> s.26.8
 
     // not expecting area to be negative so only routing from area[27:4]
 
@@ -127,6 +127,7 @@ module setup (
             w0_row_o <= w0_row+{9'h0,bias0};
             w1_row_o <= w1_row+{9'h0,bias1};
             w2_row_o <= w2_row+{9'h0,bias2};
+            valid_o <= '1;
         end else if (!busy_i) begin
             valid_o <= '0;
         end
