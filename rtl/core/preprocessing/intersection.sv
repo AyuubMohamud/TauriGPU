@@ -1,137 +1,72 @@
 module intersection #(
-    parameter VERTEX_WIDTH = 32,
-    parameter FRAC_BITS = 16,  // Number of fractional bits for fixed-point representation
-    parameter NEWTON_ITERATIONS = 3  // Number of Newton-Raphson iterations
+    parameter WIDTH = 16  // 12.4 format: 1 sign + 11 int + 4 frac = 16 bits
 )(
-    input wire clk_i,
-    input wire start_i,
+    input  logic                    clk_i,
+    input  logic                    start_i,
     
-    // Vertex 1 (inside vertex)
-    input logic signed [VERTEX_WIDTH-1:0] v1_x, v1_y, v1_z, v1_w,
-    // Vertex 2 (outside vertex)
-    input logic signed [VERTEX_WIDTH-1:0] v2_x, v2_y, v2_z, v2_w,
-    // Plane equation coefficients
-    input logic signed [VERTEX_WIDTH-1:0] plane_a, plane_b, plane_c, plane_d,
+    // Line segment endpoints (v1 to v2)
+    input  logic signed [WIDTH-1:0] v1_x,
+    input  logic signed [WIDTH-1:0] v1_y,
+    input  logic signed [WIDTH-1:0] v1_z,
+    input  logic signed [WIDTH-1:0] v1_w,
+    input  logic signed [WIDTH-1:0] v2_x,
+    input  logic signed [WIDTH-1:0] v2_y,
+    input  logic signed [WIDTH-1:0] v2_z,
+    input  logic signed [WIDTH-1:0] v2_w,
     
-    // Intersection point
-    output logic signed [VERTEX_WIDTH-1:0] intersect_x, intersect_y, intersect_z, intersect_w,
-    output logic done_o
+    // Plane coefficients
+    input  logic signed [WIDTH-1:0] plane_a,
+    input  logic signed [WIDTH-1:0] plane_b,
+    input  logic signed [WIDTH-1:0] plane_c,
+    input  logic signed [WIDTH-1:0] plane_d,
+    
+    // Intersection point output
+    output logic signed [WIDTH-1:0] intersect_x,
+    output logic signed [WIDTH-1:0] intersect_y,
+    output logic signed [WIDTH-1:0] intersect_z,
+    output logic signed [WIDTH-1:0] intersect_w,
+    
+    output logic                    done_o
 );
 
-    // Internal signals
-    logic signed [VERTEX_WIDTH-1:0] t_num, t_den;
-    logic signed [VERTEX_WIDTH-1:0] t;
-    logic signed [VERTEX_WIDTH-1:0] reciprocal;
-    logic signed [2*VERTEX_WIDTH-1:0] mul_temp;
+always_ff @(posedge clk_i) begin
+    if (start_i) begin
+        // Use 32 bits for intermediate calculations (16.16 format)
+        logic signed [31:0] num;
+        logic signed [31:0] den;
+        logic signed [31:0] t;
+        
+        // Calculate numerator, scaling up by 16 bits
+        // Note: When multiplying two 12.4 numbers, result is 24.8 format
+        num = (-($signed(plane_a)*$signed(v1_x) + 
+                 $signed(plane_b)*$signed(v1_y) + 
+                 $signed(plane_c)*$signed(v1_z) + 
+                 $signed(plane_d)*$signed(v1_w))) << 8; // Scale from 24.8 to 16.16
+                 
+        // Calculate denominator (24.8 format initially)
+        den = ($signed(plane_a)*$signed(v2_x - v1_x) + 
+               $signed(plane_b)*$signed(v2_y - v1_y) + 
+               $signed(plane_c)*$signed(v2_z - v1_z) + 
+               $signed(plane_d)*$signed(v2_w - v1_w));
+               
+        // Scale denominator to match numerator's 16.16 format
+        den = den << 8;
+        
+        // Compute t while maintaining fixed-point precision (result in 16.16)
+        t = (den == 0) ? 0 : (num / den);
+        
+        // Calculate intersections
+        // When multiplying t (16.16) with v2-v1 (12.4), result needs to be shifted right by 16
+        // to get back to 12.4 format
+        intersect_x <= v1_x + ((t * $signed(v2_x - v1_x)) >>> 16);
+        intersect_y <= v1_y + ((t * $signed(v2_y - v1_y)) >>> 16);
+        intersect_z <= v1_z + ((t * $signed(v2_z - v1_z)) >>> 16);
+        intersect_w <= v1_w + ((t * $signed(v2_w - v1_w)) >>> 16);
 
-    // State machine
-    typedef enum logic [2:0] {
-        IDLE,
-        CALCULATE_T_NUM,
-        CALCULATE_T_DEN,
-        RECIPROCAL_INIT,
-        RECIPROCAL_ITERATE,
-        CALCULATE_T,
-        INTERPOLATE,
-        DONE
-    } state_t;
-
-    state_t state, next_state;
-    logic [$clog2(NEWTON_ITERATIONS):0] iteration_count;
-
-    always_ff @(posedge clk_i) begin
-        if (!start_i)
-            state <= IDLE;
-        else
-            state <= next_state;
+        done_o <= 1'b1;
+    end else begin
+        done_o <= 1'b0;
     end
-
-    always_comb begin
-        next_state = state;
-        case (state)
-            IDLE: if (start_i) next_state = CALCULATE_T_NUM;
-            CALCULATE_T_NUM: next_state = CALCULATE_T_DEN;
-            CALCULATE_T_DEN: next_state = RECIPROCAL_INIT;
-            RECIPROCAL_INIT: next_state = RECIPROCAL_ITERATE;
-            RECIPROCAL_ITERATE: begin
-                if (iteration_count == NEWTON_ITERATIONS - 1)
-                    next_state = CALCULATE_T;
-            end
-            CALCULATE_T: next_state = INTERPOLATE;
-            INTERPOLATE: next_state = DONE;
-            DONE: next_state = IDLE;
-        endcase
-    end
-
-    // Calculation logic
-    always_ff @(posedge clk_i) begin
-        case (state)
-            CALCULATE_T_NUM: begin
-                // Calculate t_num
-                mul_temp = $signed(plane_a) * $signed(v1_x);
-                t_num = -mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-                
-                mul_temp = $signed(plane_b) * $signed(v1_y);
-                t_num = t_num - mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-                
-                mul_temp = $signed(plane_c) * $signed(v1_z);
-                t_num = t_num - mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-                
-                mul_temp = $signed(plane_d) * $signed(v1_w);
-                t_num = t_num - mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-            end
-
-            CALCULATE_T_DEN: begin
-                // Calculate t_den
-                mul_temp = $signed(plane_a) * $signed(v2_x - v1_x);
-                t_den = mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-                
-                mul_temp = $signed(plane_b) * $signed(v2_y - v1_y);
-                t_den = t_den + mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-                
-                mul_temp = $signed(plane_c) * $signed(v2_z - v1_z);
-                t_den = t_den + mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-                
-                mul_temp = $signed(plane_d) * $signed(v2_w - v1_w);
-                t_den = t_den + mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-            end
-
-            RECIPROCAL_INIT: begin
-                reciprocal <= (1 << (VERTEX_WIDTH - 2)) / (t_den >>> (VERTEX_WIDTH - FRAC_BITS - 1));
-                iteration_count <= 0;
-            end
-
-            RECIPROCAL_ITERATE: begin
-                // Newton-Raphson iteration: x = x * (2 - d * x)
-                mul_temp = $signed(t_den) * $signed(reciprocal);
-                mul_temp = (2 << FRAC_BITS) - mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-                mul_temp = $signed(reciprocal) * $signed(mul_temp);
-                reciprocal <= mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-                iteration_count <= iteration_count + 1;
-            end
-
-            CALCULATE_T: begin
-                mul_temp = $signed(t_num) * $signed(reciprocal);
-                t <= mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-            end
-
-            INTERPOLATE: begin
-                mul_temp = $signed(t) * $signed(v2_x - v1_x);
-                intersect_x <= v1_x + mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-
-                mul_temp = $signed(t) * $signed(v2_y - v1_y);
-                intersect_y <= v1_y + mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-
-                mul_temp = $signed(t) * $signed(v2_z - v1_z);
-                intersect_z <= v1_z + mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-
-                mul_temp = $signed(t) * $signed(v2_w - v1_w);
-                intersect_w <= v1_w + mul_temp[VERTEX_WIDTH-1+FRAC_BITS:FRAC_BITS];
-            end
-
-            DONE: done_o <= 1'b1;
-            default: done_o <= 1'b0;
-        endcase
-    end
+end
 
 endmodule

@@ -9,7 +9,7 @@ from mods.exception_mods import *
 
 def move_file(test_dir: Path, compute_unit_name: str, module_under_test: str) -> None:
     """
-    Moves the current dump.vcd file into the waves folder as 'dump.vcd',
+    Copies the current dump.vcd file into the waves folder as 'dump.vcd',
     also saves a copy with a timestamp for record keeping.
     
     Args:
@@ -25,8 +25,10 @@ def move_file(test_dir: Path, compute_unit_name: str, module_under_test: str) ->
     src_vcd = test_dir / compute_unit_name / 'dump.vcd'
     dest_vcd = waves_dir / 'dump.vcd'
 
-    # Move the current dump.vcd to the waves folder as "dump.vcd"
-    shutil.move(str(src_vcd), str(dest_vcd))
+    # ----------------------------------------------------------------
+    # CHANGE HERE: use copy instead of move
+    # ----------------------------------------------------------------
+    shutil.copy(str(src_vcd), str(dest_vcd))
 
     # Generate a unique filename based on the current timestamp and module
     timestamped_filename = datetime.now().strftime('%y%m%d_%H%M%S_') + module_under_test + '.vcd'
@@ -84,10 +86,6 @@ def main():
     # ----------------------------------------------------------------
     # 2) SEARCH for {module_under_test}_tb.py under the ./test folder
     # ----------------------------------------------------------------
-    # We'll transform the discovered .py path into a single-level module
-    # name by replacing "/" with "_". For example:
-    #   test/core/preprocessing/intersection_tb.py
-    # => core_preprocessing_intersection_tb
     py_testbench_file = None
     for candidate in test_dir.rglob(f'{module_under_test}_tb.py'):
         if candidate.is_file():
@@ -95,23 +93,23 @@ def main():
             break
 
     if py_testbench_file is None:
-        # Fallback: If no testbench file is found, just use {module_under_test}_tb
-        # which means the user might have intersection_tb.py in the current directory
-        # or on PYTHONPATH, etc.
         print(f"Warning: Cannot find {module_under_test}_tb.py under {test_dir}.")
         test_module_name = f"{module_under_test}_tb"
     else:
         test_module_name = py_testbench_file.stem
-
         print(f"Found Python testbench at: {py_testbench_file}")
         print(f"Using single-level module name = '{test_module_name}'")
 
     # ----------------------------------------------------------------
     # Cleanup Phase
     # ----------------------------------------------------------------
-    dump_vcd = test_dir / compute_unit_name / 'dump.vcd'
-    if dump_vcd.exists():
-        dump_vcd.unlink()
+    # ----------------------------------------------------------------
+    # CHANGE HERE: remove the dump.vcd unlink portion
+    # ----------------------------------------------------------------
+    # dump_vcd = test_dir / compute_unit_name / 'dump.vcd'
+    # if dump_vcd.exists():
+    #     dump_vcd.unlink()
+    # (No more unlinking! We keep the original dump.vcd.)
 
     for item in current_dir.glob('sim_build.*'):
         if item.is_file():
@@ -145,7 +143,7 @@ def main():
         enable_trace=enable_trace,
     )
 
-    # 4) Move the VCD file after simulation completes if tracing is enabled
+    # 4) Copy the VCD file after simulation completes if tracing is enabled
     if enable_trace:
         move_file(test_dir, compute_unit_name, module_under_test)
 
