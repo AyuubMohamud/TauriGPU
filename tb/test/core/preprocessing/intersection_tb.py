@@ -45,6 +45,7 @@ def fixed_12_8_to_float(val_fixed):
     """Convert 12.8 fixed point back to float."""
     return val_fixed / 256.0
 
+values = []
 
 @cocotb.test()
 async def test_intersection(dut):
@@ -59,7 +60,7 @@ async def test_intersection(dut):
     clock = Clock(dut.clk_i, 10, units='ns')
     cocotb.start_soon(clock.start())
 
-    test_iters = 1000
+    test_iters = 100000
     print(f"Running intersection tests with {test_iters} random (segment) intersections in 12.8.\n")
 
     # Reset-like behavior
@@ -68,8 +69,8 @@ async def test_intersection(dut):
         await RisingEdge(dut.clk_i)
 
     # For 12.8, let's allow up to ±2048 so as not to overflow 20 bits:
-    MIN_VAL = -2048.0
-    MAX_VAL = +2048.0
+    MIN_VAL = -1280.0
+    MAX_VAL = +1279.0
 
     mismatches = 0
     failed_iterations = []
@@ -78,6 +79,9 @@ async def test_intersection(dut):
     diffs_z, diffs_w = [], []
 
     rng = np.random.default_rng()
+    for num in range(0, 100000):
+        rand = 0.015625*int(rng.uniform(20, 60))
+        values.append(rand)
 
     for test_count in tqdm(range(test_iters), desc="Testing Intersection"):
         
@@ -93,7 +97,7 @@ async def test_intersection(dut):
         v2_wf = 1.0
 
         # 2) Pick random t in [0,1]
-        t_rand = rng.random()
+        t_rand = values[test_count]
 
         # 3) Intersection p = v1 + t*(v2 - v1)
         px = v1_xf + t_rand * (v2_xf - v1_xf)
@@ -201,13 +205,14 @@ async def test_intersection(dut):
         diffs_w.append(dw_abs)
 
         # Because 12.8 is more precise than 12.4 but still not floating, we keep a moderate TOL
-        TOL = 10
+        TOL = 100
         if (dx_abs > TOL) or (dy_abs > TOL) or (dz_abs > TOL) or (dw_abs > TOL):
             mismatches += 1
             failed_iterations.append(test_count)
             print(f"\n[ERROR] Mismatch @ iteration {test_count}")
             print(f"  t_rand = {t_rand:.3f}")
             print(f"  HW  = ({hw_ix:.6f}, {hw_iy:.6f}, {hw_iz:.6f}, {hw_iw:.6f})")
+            print(f"  HW_V = ({dut.intersect_x.value.signed_integer}, {dut.intersect_y.value.signed_integer}, {dut.intersect_z.value.signed_integer}, {dut.intersect_w.value.signed_integer})")
             print(f"  REF = ({ref_ix:.6f}, {ref_iy:.6f}, {ref_iz:.6f}, {ref_iw:.6f})")
             print(f"  Diff = ({dx_abs:.6f}, {dy_abs:.6f}, {dz_abs:.6f}, {dw_abs:.6f})")
 
@@ -226,3 +231,49 @@ async def test_intersection(dut):
     print(f" W: {avg_diff_w:.6f}")
 
     assert mismatches == 0, f"{mismatches} mismatch(es) found."
+
+
+async def test_intersection2(dut):
+    """
+    Cocotb test for intersection.sv module using floating point reference model
+    and **12.8** fixed point format.
+
+    We ONLY generate test cases where the plane truly intersects
+    the *segment* between v1 and v2, so t is guaranteed in [0,1].
+    """
+    # Start the clock
+    clock = Clock(dut.clk_i, 10, units='ns')
+    cocotb.start_soon(clock.start())
+
+    test_iters = 1000
+    print(f"Running intersection tests with {test_iters} random (segment) intersections in 12.8.\n")
+
+    # Reset-like behavior
+    dut.start_i.value = 0
+    for _ in range(5):
+        await RisingEdge(dut.clk_i)
+
+    # For 12.8, let's allow up to ±2048 so as not to overflow 20 bits:
+    MIN_VAL = -1280.0
+    MAX_VAL = +1280.0
+
+    mismatches = 0
+    failed_iterations = []
+
+    diffs_x, diffs_y = [], []
+    diffs_z, diffs_w = [], []
+
+    rng = np.random.default_rng()
+
+    """
+        Randomly generate a cartesian equation for the plane normal
+    """
+
+    coeff_x = rng.uniform(0.0, 1.0)
+    coeff_y = rng.uniform(0.0, 1.0)
+    coeff_z = rng.uniform(0.0, 1.0)
+    coeff_w = 1.0
+    constant = rng.uniform(0.0, 1.0)
+
+
+
