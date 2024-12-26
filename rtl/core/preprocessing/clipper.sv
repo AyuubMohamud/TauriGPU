@@ -217,8 +217,9 @@ module clipper #(
                         // v2 is inside, v0 and v1 are outside
                         // Clip v0 and v1 against the frustum
                         {clipped_v0_x_o, clipped_v0_y_o, clipped_v0_z_o, clipped_v0_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
-                        {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
-                        {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
+                        {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
+                        {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= 
+                        {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
                     end
                 end
                 2'd2: begin
