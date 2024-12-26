@@ -100,14 +100,23 @@ module clipper #(
     intersection intersection1 (
         .clk_i(clk_i),
         .start_i(intersect_signal),
-        .v1_x(v1_x_i),
-        .v1_y(v1_y_i),
-        .v1_z(v1_z_i),
-        .v1_w(v1_w_i),
-        .v2_x(v2_x_i),
-        .v2_y(v2_y_i),
-        .v2_z(v2_z_i),
-        .v2_w(v2_w_i),
+        .v1_x(vertex_inside[0] ? v0_x_i : 
+              vertex_inside[1] ? v1_x_i : v2_x_i),
+        .v1_y(vertex_inside[0] ? v0_y_i : 
+              vertex_inside[1] ? v1_y_i : v2_y_i),
+        .v1_z(vertex_inside[0] ? v0_z_i : 
+              vertex_inside[1] ? v1_z_i : v2_z_i),
+        .v1_w(vertex_inside[0] ? v0_w_i : 
+              vertex_inside[1] ? v1_w_i : v2_w_i),
+        // Always connect to next vertex cyclically
+        .v2_x(vertex_inside[0] ? v1_x_i : 
+              vertex_inside[1] ? v2_x_i : v0_x_i),
+        .v2_y(vertex_inside[0] ? v1_y_i : 
+              vertex_inside[1] ? v2_y_i : v0_y_i),
+        .v2_z(vertex_inside[0] ? v1_z_i : 
+              vertex_inside[1] ? v2_z_i : v0_z_i),
+        .v2_w(vertex_inside[0] ? v1_w_i : 
+              vertex_inside[1] ? v2_w_i : v0_w_i),
         .plane_a(plane_normal_x_i),
         .plane_b(plane_normal_y_i),
         .plane_c(plane_normal_z_i),
@@ -118,18 +127,27 @@ module clipper #(
         .intersect_w(intersect1_w),
         .done_o(intersect_calc_done1)
     );
-
+    
     intersection intersection2 (
         .clk_i(clk_i),
         .start_i(intersect_signal),
-        .v1_x(v2_x_i),
-        .v1_y(v2_y_i),
-        .v1_z(v2_z_i),
-        .v1_w(v2_w_i),
-        .v2_x(v0_x_i),
-        .v2_y(v0_y_i),
-        .v2_z(v0_z_i),
-        .v2_w(v0_w_i),
+        .v1_x(vertex_inside[0] ? v0_x_i : 
+              vertex_inside[1] ? v1_x_i : v2_x_i),
+        .v1_y(vertex_inside[0] ? v0_y_i : 
+              vertex_inside[1] ? v1_y_i : v2_y_i),
+        .v1_z(vertex_inside[0] ? v0_z_i : 
+              vertex_inside[1] ? v1_z_i : v2_z_i),
+        .v1_w(vertex_inside[0] ? v0_w_i : 
+              vertex_inside[1] ? v1_w_i : v2_w_i),
+        // Go to second outside vertex
+        .v2_x(vertex_inside[0] ? v2_x_i : 
+              vertex_inside[1] ? v0_x_i : v1_x_i),
+        .v2_y(vertex_inside[0] ? v2_y_i : 
+              vertex_inside[1] ? v0_y_i : v1_y_i),
+        .v2_z(vertex_inside[0] ? v2_z_i : 
+              vertex_inside[1] ? v0_z_i : v1_z_i),
+        .v2_w(vertex_inside[0] ? v2_w_i : 
+              vertex_inside[1] ? v0_w_i : v1_w_i),
         .plane_a(plane_normal_x_i),
         .plane_b(plane_normal_y_i),
         .plane_c(plane_normal_z_i),
@@ -215,52 +233,44 @@ module clipper #(
                         {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
                     end else begin
                         // v2 is inside, v0 and v1 are outside
-                        // Clip v0 and v1 against the frustum
                         {clipped_v0_x_o, clipped_v0_y_o, clipped_v0_z_o, clipped_v0_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
-                        {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
-                        {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= 
-                        {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
+                        {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
+                        {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
                     end
                 end
                 2'd2: begin
                     // Two vertices are inside, internal quad split into two triangles
-                    // ** Intersection order must be followed:
-                    // ** If v2 is inside, then v0-v1 is the first intersection
-                    // ** If v2 is outside, then v1-v2 is the first intersection
-                    // ** The triangle is always made using intersection 1 to opposite vertex as the edge
                     valid_o <= 1;
                     num_triangles_o <= 2;
                     if (!vertex_inside[0]) begin
                         // v0 is outside, v1 and v2 are inside
-                        {clipped_v0_x_o, clipped_v0_y_o, clipped_v0_z_o, clipped_v0_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
-                        {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {v1_x_i, v1_y_i, v1_z_i, v1_w_i};
-                        {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
-
-                        {clipped_v3_x_o, clipped_v3_y_o, clipped_v3_z_o, clipped_v3_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
-                        {clipped_v4_x_o, clipped_v4_y_o, clipped_v4_z_o, clipped_v4_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
-                        {clipped_v5_x_o, clipped_v5_y_o, clipped_v5_z_o, clipped_v5_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
-
-                    end else if (!vertex_inside[1]) begin
-                        // v1 is outside, v0 and v2 are inside
-                        {clipped_v0_x_o, clipped_v0_y_o, clipped_v0_z_o, clipped_v0_w_o} <= {v0_x_i, v0_y_i, v0_z_i, v0_w_i};
-                        {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
-                        {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
-
+                        {clipped_v0_x_o, clipped_v0_y_o, clipped_v0_z_o, clipped_v0_w_o} <= {v1_x_i, v1_y_i, v1_z_i, v1_w_i};
+                        {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
+                        {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
+                
                         {clipped_v3_x_o, clipped_v3_y_o, clipped_v3_z_o, clipped_v3_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
                         {clipped_v4_x_o, clipped_v4_y_o, clipped_v4_z_o, clipped_v4_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
                         {clipped_v5_x_o, clipped_v5_y_o, clipped_v5_z_o, clipped_v5_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
-                        
+                    end else if (!vertex_inside[1]) begin
+                        // v1 is outside, v0 and v2 are inside
+                        {clipped_v0_x_o, clipped_v0_y_o, clipped_v0_z_o, clipped_v0_w_o} <= {v0_x_i, v0_y_i, v0_z_i, v0_w_i};
+                        {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
+                        {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
+                
+                        {clipped_v3_x_o, clipped_v3_y_o, clipped_v3_z_o, clipped_v3_w_o} <= {v2_x_i, v2_y_i, v2_z_i, v2_w_i};
+                        {clipped_v4_x_o, clipped_v4_y_o, clipped_v4_z_o, clipped_v4_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
+                        {clipped_v5_x_o, clipped_v5_y_o, clipped_v5_z_o, clipped_v5_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
                     end else begin
                         // v2 is outside, v0 and v1 are inside
                         {clipped_v0_x_o, clipped_v0_y_o, clipped_v0_z_o, clipped_v0_w_o} <= {v0_x_i, v0_y_i, v0_z_i, v0_w_i};
                         {clipped_v1_x_o, clipped_v1_y_o, clipped_v1_z_o, clipped_v1_w_o} <= {v1_x_i, v1_y_i, v1_z_i, v1_w_i};
                         {clipped_v2_x_o, clipped_v2_y_o, clipped_v2_z_o, clipped_v2_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
-
-                        {clipped_v3_x_o, clipped_v3_y_o, clipped_v3_z_o, clipped_v3_w_o} <= {v0_x_i, v0_y_i, v0_z_i, v0_w_i};
+                
+                        {clipped_v3_x_o, clipped_v3_y_o, clipped_v3_z_o, clipped_v3_w_o} <= {v1_x_i, v1_y_i, v1_z_i, v1_w_i};
                         {clipped_v4_x_o, clipped_v4_y_o, clipped_v4_z_o, clipped_v4_w_o} <= {intersect1_x, intersect1_y, intersect1_z, intersect1_w};
                         {clipped_v5_x_o, clipped_v5_y_o, clipped_v5_z_o, clipped_v5_w_o} <= {intersect2_x, intersect2_y, intersect2_z, intersect2_w};
                     end
-                end 
+                end
                 2'd3: begin
                     // All vertices are inside, no clipping required
                     valid_o <= 1;
