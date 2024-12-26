@@ -3,43 +3,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from tqdm import tqdm
 import numpy as np
-
-def intersection_float(
-    v1_x, v1_y, v1_z, v1_w,
-    v2_x, v2_y, v2_z, v2_w,
-    a, b, c, d
-):
-    """Floating-point reference for line-plane intersection, 
-    now clamping t in [0,1] to match segment logic."""
-    numerator = -(a*v1_x + b*v1_y + c*v1_z + d*v1_w)
-    dx = v2_x - v1_x
-    dy = v2_y - v1_y
-    dz = v2_z - v1_z
-    dw = v2_w - v1_w
-    denominator = (a*dx + b*dy + c*dz + d*dw)
-    
-    # Check near parallel
-    if abs(denominator) < 1e-15:
-        return (float('nan'), float('nan'), float('nan'), float('nan'))
-
-    t = numerator / denominator
-
-    # Clamp t to [0,1]
-    t = max(0.0, min(1.0, t))
-    return (
-        v1_x + dx * t,
-        v1_y + dy * t,
-        v1_z + dz * t,
-        v1_w + dw * t
-    )
-
-def float_to_fixed_12_12(value):
-    """Convert float to 12.12 fixed point format (1 sign + 11 int + 12 frac = 24 bits)."""
-    return int(round(value * 4096.0))  # 2^12 = 4096
-
-def fixed_12_12_to_float(val_fixed):
-    """Convert 12.12 fixed point back to float."""
-    return val_fixed / 4096.0
+import ref_model.intersection_ref as ref
 
 
 @cocotb.test()
@@ -120,20 +84,20 @@ async def test_intersection(dut):
             continue
 
         # Convert to 12.12
-        fx_v1_x = float_to_fixed_12_12(v1_xf)
-        fx_v1_y = float_to_fixed_12_12(v1_yf)
-        fx_v1_z = float_to_fixed_12_12(v1_zf)
-        fx_v1_w = float_to_fixed_12_12(v1_wf)
+        fx_v1_x = ref.float_to_fixed_12_12(v1_xf)
+        fx_v1_y = ref.float_to_fixed_12_12(v1_yf)
+        fx_v1_z = ref.float_to_fixed_12_12(v1_zf)
+        fx_v1_w = ref.float_to_fixed_12_12(v1_wf)
 
-        fx_v2_x = float_to_fixed_12_12(v2_xf)
-        fx_v2_y = float_to_fixed_12_12(v2_yf)
-        fx_v2_z = float_to_fixed_12_12(v2_zf)
-        fx_v2_w = float_to_fixed_12_12(v2_wf)
+        fx_v2_x = ref.float_to_fixed_12_12(v2_xf)
+        fx_v2_y = ref.float_to_fixed_12_12(v2_yf)
+        fx_v2_z = ref.float_to_fixed_12_12(v2_zf)
+        fx_v2_w = ref.float_to_fixed_12_12(v2_wf)
 
-        fx_plane_a = float_to_fixed_12_12(plane_a)
-        fx_plane_b = float_to_fixed_12_12(plane_b)
-        fx_plane_c = float_to_fixed_12_12(plane_c)
-        fx_plane_d = float_to_fixed_12_12(plane_d)
+        fx_plane_a = ref.float_to_fixed_12_12(plane_a)
+        fx_plane_b = ref.float_to_fixed_12_12(plane_b)
+        fx_plane_c = ref.float_to_fixed_12_12(plane_c)
+        fx_plane_d = ref.float_to_fixed_12_12(plane_d)
 
         # DUT inputs: 24 bits wide => mask with 0xFFFFFF
         dut.v1_x.value = fx_v1_x & 0xFFFFFF
@@ -161,13 +125,13 @@ async def test_intersection(dut):
             await RisingEdge(dut.clk_i)
 
         # HW outputs in 12.12
-        hw_ix = fixed_12_12_to_float(dut.intersect_x.value.signed_integer)
-        hw_iy = fixed_12_12_to_float(dut.intersect_y.value.signed_integer)
-        hw_iz = fixed_12_12_to_float(dut.intersect_z.value.signed_integer)
-        hw_iw = fixed_12_12_to_float(dut.intersect_w.value.signed_integer)
+        hw_ix = ref.fixed_12_12_to_float(dut.intersect_x.value.signed_integer)
+        hw_iy = ref.fixed_12_12_to_float(dut.intersect_y.value.signed_integer)
+        hw_iz = ref.fixed_12_12_to_float(dut.intersect_z.value.signed_integer)
+        hw_iw = ref.fixed_12_12_to_float(dut.intersect_w.value.signed_integer)
 
         # Reference result
-        ref_ix, ref_iy, ref_iz, ref_iw = intersection_float(
+        ref_ix, ref_iy, ref_iz, ref_iw = ref.intersection_float(
             v1_xf, v1_yf, v1_zf, v1_wf,
             v2_xf, v2_yf, v2_zf, v2_wf,
             plane_a, plane_b, plane_c, plane_d

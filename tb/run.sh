@@ -1,3 +1,3 @@
 
 clear
-python runner.py -t 1 -n intersection
+python runner.py -t 1 -n clipper
