@@ -1,9 +1,16 @@
-tb/sim_build/*
-tb/sim_build.*
-tb/test/core/fpu/dump.fst*
-tb/__pycache__/*
-.venv
+# Ignore all __pycache__ directories
+**/__pycache__/
+
+# Build artifacts
+tb/sim_build*
 tb/test/waves/*
+
+# Temporary files
+tb/test/core/fpu/dump.fst*
+dump.vcd
+
+# Logs
 tb/test/rasteriser/log.txt
-tb/__pycache__
-tb/mods/__pycache__
+
+# Python virtual environments
+.venv/
