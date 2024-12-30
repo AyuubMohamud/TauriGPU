@@ -5,22 +5,37 @@ module z_buffer #(
         0 to 255 (0 is closest to the camera, 255 is farthest)
             --> represents the normalized range from 0 to 1 (mapped from NDC range of -1 to 1)
     */
-    // parameter X_RES = 1280,
-    // parameter Y_RES = 720,
-    parameter X_RES = 4,
-    parameter Y_RES = 4,
+    parameter X_RES = 1280,
+    parameter Y_RES = 720,
     parameter X_PIXEL_SIZE = $clog2(X_RES),
-    parameter Y_PIXEL_SIZE = $clog2(Y_RES)
+    parameter Y_PIXEL_SIZE = $clog2(Y_RES),
+    parameter ADDR_SIZE = 32
 )(
     input logic clk_i,
-    input logic start_i,                            // glEnable(GL_DEPTH_TEST)
+    // input logic rst_i,
 
-    // Z-buffer control signals
+    // Control signals
+    input logic start_i,                            // glEnable(GL_DEPTH_TEST)
     input logic flush_i,                            // reset buffer every frame (glClear(GL_DEPTH_BUFFER_BIT))
+    
+    // Pixel data
     input logic [X_PIXEL_SIZE-1:0] pixel_x_i,
-    input logic [Y_PIXEL_SIZE-1:0] pixel_y_i, 
+    input logic [Y_PIXEL_SIZE-1:0] pixel_y_i,
     input logic [Z_SIZE-1:0] pixel_z_i,
     input logic [2:0] z_depth_func_i,
+    
+    input logic [ADDR_SIZE-1:0] buffer_base_address_i,
+
+    output logic buf_r_w, // 1 read, 0 write
+    output [Z_SIZE-1:0] buf_data_w,
+    input [Z_SIZE-1:0] buf_data_r,
+    output [ADDR_SIZE-1:0] buf_addr,
+
+    input data_r_valid,
+    output data_r_ready,
+
+    output data_w_valid,
+    input data_w_ready,
 
     output logic flush_done_o,
     output logic depth_pass_o,                      // render
@@ -42,26 +57,12 @@ module z_buffer #(
     logic need_update;
     logic update_complete;
     
-    // Single pixel buffer
-    typedef struct packed {
-        // logic valid;
-        logic [Z_SIZE-1:0] z;
-    } pixel_buffer;
-
-    pixel_buffer z_buffer_array[X_RES-1:0][Y_RES-1:0];
+    // Calculating address (base + offset)
+    logic [$clog2(Y_RES*X_RES)-1:0] offset;
+    logic [ADDR_SIZE-1:0] addr;
     
-    // Extra signals for debugging
-    logic [Z_SIZE-1:0] curr_buffer_z;
-    assign curr_buffer_z = z_buffer_array[pixel_x_i][pixel_y_i].z;
-
-    // Init buffer
-    initial begin
-        for (int x = 0; x < X_RES; x++) begin
-            for (int y = 0; y < Y_RES; y++) begin
-                z_buffer_array[x][y].z = 8'd255; // Farthest point
-            end
-        end
-    end
+    assign offset = pixel_y_i*X_RES + pixel_x_i;
+    assign addr = buffer_base_address_i + offset;
 
     typedef enum logic [2:0] {
         GL_NEVER = 3'b000,

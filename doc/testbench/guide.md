@@ -3,8 +3,10 @@
 ### Running the testbench
 
 Dependencies:
-- cocotb
-- 
+```
+cocotb 1.9.X
+Verilator 5.X
+```
 
 Simply run: `python runner.py -t <0 or 1> -n <module_under_test>`.
 Or alternatively, run the bash script `run.sh` in the `tb` folder.
