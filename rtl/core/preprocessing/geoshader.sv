@@ -1,6 +1,5 @@
 module geoshader #(
-    parameter VERTEX_WIDTH = 32,
-    parameter FRUSTUM_WIDTH = 32,
+    parameter WIDTH = 24,
     parameter NUM_PLANES = 6,
     parameter MAX_TRIANGLES = 64
 )(
@@ -8,20 +7,20 @@ module geoshader #(
     input wire start_i,
 
     // Input triangle
-    input logic [VERTEX_WIDTH-1:0] v0_x_i, v0_y_i, v0_z_i, v0_w_i,
-    input logic [VERTEX_WIDTH-1:0] v1_x_i, v1_y_i, v1_z_i, v1_w_i,
-    input logic [VERTEX_WIDTH-1:0] v2_x_i, v2_y_i, v2_z_i, v2_w_i,
+    input logic [WIDTH-1:0] v0_x_i, v0_y_i, v0_z_i, v0_w_i,
+    input logic [WIDTH-1:0] v1_x_i, v1_y_i, v1_z_i, v1_w_i,
+    input logic [WIDTH-1:0] v2_x_i, v2_y_i, v2_z_i, v2_w_i,
 
     // Clipping planes
-    input logic [FRUSTUM_WIDTH-1:0] plane_a_i[NUM_PLANES],
-    input logic [FRUSTUM_WIDTH-1:0] plane_b_i[NUM_PLANES],
-    input logic [FRUSTUM_WIDTH-1:0] plane_c_i[NUM_PLANES],
-    input logic [FRUSTUM_WIDTH-1:0] plane_d_i[NUM_PLANES],
+    input logic [WIDTH-1:0] plane_a_i[NUM_PLANES],
+    input logic [WIDTH-1:0] plane_b_i[NUM_PLANES],
+    input logic [WIDTH-1:0] plane_c_i[NUM_PLANES],
+    input logic [WIDTH-1:0] plane_d_i[NUM_PLANES],
 
     // Output to rasterizer
-    output logic [VERTEX_WIDTH-1:0] v0_x_o, v0_y_o, v0_z_o, v0_w_o,
-    output logic [VERTEX_WIDTH-1:0] v1_x_o, v1_y_o, v1_z_o, v1_w_o,
-    output logic [VERTEX_WIDTH-1:0] v2_x_o, v2_y_o, v2_z_o, v2_w_o,
+    output logic [WIDTH-1:0] v0_x_o, v0_y_o, v0_z_o, v0_w_o,
+    output logic [WIDTH-1:0] v1_x_o, v1_y_o, v1_z_o, v1_w_o,
+    output logic [WIDTH-1:0] v2_x_o, v2_y_o, v2_z_o, v2_w_o,
 
     output logic done_o
 );
@@ -42,27 +41,27 @@ module geoshader #(
     logic fifo2_wr, fifo2_full, fifo2_empty, fifo2_read;
 
     // FIFO1 Data
-    logic [VERTEX_WIDTH-1:0] v0_x_fifo1, v0_y_fifo1, v0_z_fifo1, v0_w_fifo1;
-    logic [VERTEX_WIDTH-1:0] v1_x_fifo1, v1_y_fifo1, v1_z_fifo1, v1_w_fifo1;
-    logic [VERTEX_WIDTH-1:0] v2_x_fifo1, v2_y_fifo1, v2_z_fifo1, v2_w_fifo1;
+    logic [WIDTH-1:0] v0_x_fifo1, v0_y_fifo1, v0_z_fifo1, v0_w_fifo1;
+    logic [WIDTH-1:0] v1_x_fifo1, v1_y_fifo1, v1_z_fifo1, v1_w_fifo1;
+    logic [WIDTH-1:0] v2_x_fifo1, v2_y_fifo1, v2_z_fifo1, v2_w_fifo1;
 
-    logic [VERTEX_WIDTH*12-1:0] fifo1_data_in, fifo1_data_out;
+    logic [WIDTH*12-1:0] fifo1_data_in, fifo1_data_out;
 
     // Clipper output intermediate values (two triangles out of clipper)
-    logic [VERTEX_WIDTH-1:0] v0_x_fifo2_t1, v0_y_fifo2_t1, v0_z_fifo2_t1, v0_w_fifo2_t1;
-    logic [VERTEX_WIDTH-1:0] v1_x_fifo2_t1, v1_y_fifo2_t1, v1_z_fifo2_t1, v1_w_fifo2_t1;
-    logic [VERTEX_WIDTH-1:0] v2_x_fifo2_t1, v2_y_fifo2_t1, v2_z_fifo2_t1, v2_w_fifo2_t1;
+    logic [WIDTH-1:0] v0_x_fifo2_t1, v0_y_fifo2_t1, v0_z_fifo2_t1, v0_w_fifo2_t1;
+    logic [WIDTH-1:0] v1_x_fifo2_t1, v1_y_fifo2_t1, v1_z_fifo2_t1, v1_w_fifo2_t1;
+    logic [WIDTH-1:0] v2_x_fifo2_t1, v2_y_fifo2_t1, v2_z_fifo2_t1, v2_w_fifo2_t1;
 
-    logic [VERTEX_WIDTH-1:0] v0_x_fifo2_t2, v0_y_fifo2_t2, v0_z_fifo2_t2, v0_w_fifo2_t2;
-    logic [VERTEX_WIDTH-1:0] v1_x_fifo2_t2, v1_y_fifo2_t2, v1_z_fifo2_t2, v1_w_fifo2_t2;
-    logic [VERTEX_WIDTH-1:0] v2_x_fifo2_t2, v2_y_fifo2_t2, v2_z_fifo2_t2, v2_w_fifo2_t2;
+    logic [WIDTH-1:0] v0_x_fifo2_t2, v0_y_fifo2_t2, v0_z_fifo2_t2, v0_w_fifo2_t2;
+    logic [WIDTH-1:0] v1_x_fifo2_t2, v1_y_fifo2_t2, v1_z_fifo2_t2, v1_w_fifo2_t2;
+    logic [WIDTH-1:0] v2_x_fifo2_t2, v2_y_fifo2_t2, v2_z_fifo2_t2, v2_w_fifo2_t2;
 
     // Clipper to FIFO2 data
-    logic [VERTEX_WIDTH-1:0] v0_x_fifo2_in, v0_y_fifo2_in, v0_z_fifo2_in, v0_w_fifo2_in;
-    logic [VERTEX_WIDTH-1:0] v1_x_fifo2_in, v1_y_fifo2_in, v1_z_fifo2_in, v1_w_fifo2_in;
-    logic [VERTEX_WIDTH-1:0] v2_x_fifo2_in, v2_y_fifo2_in, v2_z_fifo2_in, v2_w_fifo2_in;
+    logic [WIDTH-1:0] v0_x_fifo2_in, v0_y_fifo2_in, v0_z_fifo2_in, v0_w_fifo2_in;
+    logic [WIDTH-1:0] v1_x_fifo2_in, v1_y_fifo2_in, v1_z_fifo2_in, v1_w_fifo2_in;
+    logic [WIDTH-1:0] v2_x_fifo2_in, v2_y_fifo2_in, v2_z_fifo2_in, v2_w_fifo2_in;
 
-    logic [VERTEX_WIDTH*12-1:0] fifo2_data_in, fifo2_data_out;
+    logic [WIDTH*12-1:0] fifo2_data_in, fifo2_data_out;
 
     // Signals for clipper control
     logic clip_done, clip_start, clip_valid;
@@ -70,7 +69,7 @@ module geoshader #(
 
     // Signals for clipper
     // Makes sure that I am not reading planes from a new frustum
-    logic [FRUSTUM_WIDTH-1:0] curr_plane_a, curr_plane_b, curr_plane_c, curr_plane_d;
+    logic [WIDTH-1:0] curr_plane_a, curr_plane_b, curr_plane_c, curr_plane_d;
     assign curr_plane_a = plane_a_i[plane_counter];
     assign curr_plane_b = plane_b_i[plane_counter];
     assign curr_plane_c = plane_c_i[plane_counter];
@@ -165,20 +164,20 @@ module geoshader #(
                 end
                 
                 // Extract vertex data from FIFO2 output and send FIFO2 data to FIFO1
-                v0_x_fifo1 <= fifo2_data_out[VERTEX_WIDTH*12-1 : VERTEX_WIDTH*11];
-                v0_y_fifo1 <= fifo2_data_out[VERTEX_WIDTH*11-1 : VERTEX_WIDTH*10];
-                v0_z_fifo1 <= fifo2_data_out[VERTEX_WIDTH*10-1 : VERTEX_WIDTH*9];
-                v0_w_fifo1 <= fifo2_data_out[VERTEX_WIDTH*9-1 : VERTEX_WIDTH*8];
+                v0_x_fifo1 <= fifo2_data_out[WIDTH*12-1 : WIDTH*11];
+                v0_y_fifo1 <= fifo2_data_out[WIDTH*11-1 : WIDTH*10];
+                v0_z_fifo1 <= fifo2_data_out[WIDTH*10-1 : WIDTH*9];
+                v0_w_fifo1 <= fifo2_data_out[WIDTH*9-1 : WIDTH*8];
 
-                v1_x_fifo1 <= fifo2_data_out[VERTEX_WIDTH*8-1 : VERTEX_WIDTH*7];
-                v1_y_fifo1 <= fifo2_data_out[VERTEX_WIDTH*7-1 : VERTEX_WIDTH*6];
-                v1_z_fifo1 <= fifo2_data_out[VERTEX_WIDTH*6-1 : VERTEX_WIDTH*5];
-                v1_w_fifo1 <= fifo2_data_out[VERTEX_WIDTH*5-1 : VERTEX_WIDTH*4];
+                v1_x_fifo1 <= fifo2_data_out[WIDTH*8-1 : WIDTH*7];
+                v1_y_fifo1 <= fifo2_data_out[WIDTH*7-1 : WIDTH*6];
+                v1_z_fifo1 <= fifo2_data_out[WIDTH*6-1 : WIDTH*5];
+                v1_w_fifo1 <= fifo2_data_out[WIDTH*5-1 : WIDTH*4];
 
-                v2_x_fifo1 <= fifo2_data_out[VERTEX_WIDTH*4-1 : VERTEX_WIDTH*3];
-                v2_y_fifo1 <= fifo2_data_out[VERTEX_WIDTH*3-1 : VERTEX_WIDTH*2];
-                v2_z_fifo1 <= fifo2_data_out[VERTEX_WIDTH*2-1 : VERTEX_WIDTH*1];
-                v2_w_fifo1 <= fifo2_data_out[VERTEX_WIDTH*1-1 : VERTEX_WIDTH*0];
+                v2_x_fifo1 <= fifo2_data_out[WIDTH*4-1 : WIDTH*3];
+                v2_y_fifo1 <= fifo2_data_out[WIDTH*3-1 : WIDTH*2];
+                v2_z_fifo1 <= fifo2_data_out[WIDTH*2-1 : WIDTH*1];
+                v2_w_fifo1 <= fifo2_data_out[WIDTH*1-1 : WIDTH*0];
 
                 fifo2_read <= 0;
 
@@ -199,20 +198,20 @@ module geoshader #(
 
             // ** v?_?_fifo1 is the input to the clipper
 
-            v0_x_fifo1 <= fifo1_data_out[VERTEX_WIDTH*12-1 : VERTEX_WIDTH*11];
-            v0_y_fifo1 <= fifo1_data_out[VERTEX_WIDTH*11-1 : VERTEX_WIDTH*10];
-            v0_z_fifo1 <= fifo1_data_out[VERTEX_WIDTH*10-1 : VERTEX_WIDTH*9];
-            v0_w_fifo1 <= fifo1_data_out[VERTEX_WIDTH*9-1 : VERTEX_WIDTH*8];
+            v0_x_fifo1 <= fifo1_data_out[WIDTH*12-1 : WIDTH*11];
+            v0_y_fifo1 <= fifo1_data_out[WIDTH*11-1 : WIDTH*10];
+            v0_z_fifo1 <= fifo1_data_out[WIDTH*10-1 : WIDTH*9];
+            v0_w_fifo1 <= fifo1_data_out[WIDTH*9-1 : WIDTH*8];
 
-            v1_x_fifo1 <= fifo1_data_out[VERTEX_WIDTH*8-1 : VERTEX_WIDTH*7];
-            v1_y_fifo1 <= fifo1_data_out[VERTEX_WIDTH*7-1 : VERTEX_WIDTH*6];
-            v1_z_fifo1 <= fifo1_data_out[VERTEX_WIDTH*6-1 : VERTEX_WIDTH*5];
-            v1_w_fifo1 <= fifo1_data_out[VERTEX_WIDTH*5-1 : VERTEX_WIDTH*4];
+            v1_x_fifo1 <= fifo1_data_out[WIDTH*8-1 : WIDTH*7];
+            v1_y_fifo1 <= fifo1_data_out[WIDTH*7-1 : WIDTH*6];
+            v1_z_fifo1 <= fifo1_data_out[WIDTH*6-1 : WIDTH*5];
+            v1_w_fifo1 <= fifo1_data_out[WIDTH*5-1 : WIDTH*4];
 
-            v2_x_fifo1 <= fifo1_data_out[VERTEX_WIDTH*4-1 : VERTEX_WIDTH*3];
-            v2_y_fifo1 <= fifo1_data_out[VERTEX_WIDTH*3-1 : VERTEX_WIDTH*2];
-            v2_z_fifo1 <= fifo1_data_out[VERTEX_WIDTH*2-1 : VERTEX_WIDTH*1];
-            v2_w_fifo1 <= fifo1_data_out[VERTEX_WIDTH*1-1 : VERTEX_WIDTH*0];
+            v2_x_fifo1 <= fifo1_data_out[WIDTH*4-1 : WIDTH*3];
+            v2_y_fifo1 <= fifo1_data_out[WIDTH*3-1 : WIDTH*2];
+            v2_z_fifo1 <= fifo1_data_out[WIDTH*2-1 : WIDTH*1];
+            v2_w_fifo1 <= fifo1_data_out[WIDTH*1-1 : WIDTH*0];
 
             fifo1_read <= 0;
 
@@ -295,20 +294,20 @@ module geoshader #(
                 end
 
                 // Extract vertex data from FIFO2 output and send FIFO2 data to rasterizer
-                v0_x_o <= fifo2_data_out[VERTEX_WIDTH*12-1 : VERTEX_WIDTH*11];
-                v0_y_o <= fifo2_data_out[VERTEX_WIDTH*11-1 : VERTEX_WIDTH*10];
-                v0_z_o <= fifo2_data_out[VERTEX_WIDTH*10-1 : VERTEX_WIDTH*9];
-                v0_w_o <= fifo2_data_out[VERTEX_WIDTH*9-1 : VERTEX_WIDTH*8];
+                v0_x_o <= fifo2_data_out[WIDTH*12-1 : WIDTH*11];
+                v0_y_o <= fifo2_data_out[WIDTH*11-1 : WIDTH*10];
+                v0_z_o <= fifo2_data_out[WIDTH*10-1 : WIDTH*9];
+                v0_w_o <= fifo2_data_out[WIDTH*9-1 : WIDTH*8];
 
-                v1_x_o <= fifo2_data_out[VERTEX_WIDTH*8-1 : VERTEX_WIDTH*7];
-                v1_y_o <= fifo2_data_out[VERTEX_WIDTH*7-1 : VERTEX_WIDTH*6];
-                v1_z_o <= fifo2_data_out[VERTEX_WIDTH*6-1 : VERTEX_WIDTH*5];
-                v1_w_o <= fifo2_data_out[VERTEX_WIDTH*5-1 : VERTEX_WIDTH*4];
+                v1_x_o <= fifo2_data_out[WIDTH*8-1 : WIDTH*7];
+                v1_y_o <= fifo2_data_out[WIDTH*7-1 : WIDTH*6];
+                v1_z_o <= fifo2_data_out[WIDTH*6-1 : WIDTH*5];
+                v1_w_o <= fifo2_data_out[WIDTH*5-1 : WIDTH*4];
 
-                v2_x_o <= fifo2_data_out[VERTEX_WIDTH*4-1 : VERTEX_WIDTH*3];
-                v2_y_o <= fifo2_data_out[VERTEX_WIDTH*3-1 : VERTEX_WIDTH*2];
-                v2_z_o <= fifo2_data_out[VERTEX_WIDTH*2-1 : VERTEX_WIDTH*1];
-                v2_w_o <= fifo2_data_out[VERTEX_WIDTH*1-1 : VERTEX_WIDTH*0];
+                v2_x_o <= fifo2_data_out[WIDTH*4-1 : WIDTH*3];
+                v2_y_o <= fifo2_data_out[WIDTH*3-1 : WIDTH*2];
+                v2_z_o <= fifo2_data_out[WIDTH*2-1 : WIDTH*1];
+                v2_w_o <= fifo2_data_out[WIDTH*1-1 : WIDTH*0];
 
                 fifo2_read <= 0;
 
@@ -321,7 +320,7 @@ module geoshader #(
 
     sfifo2 #(
         .FW(64),
-        .DW(VERTEX_WIDTH*12)
+        .DW(WIDTH*12)
     ) fifo1 (
         .i_clk(clk_i),
         .i_reset(1'b0),
@@ -335,7 +334,7 @@ module geoshader #(
 
     sfifo2 #(
         .FW(64),
-        .DW(VERTEX_WIDTH*12)
+        .DW(WIDTH*12)
     ) fifo2 (
         .i_clk(clk_i),
         .i_reset(1'b0),
@@ -347,10 +346,7 @@ module geoshader #(
         .o_empty(fifo2_empty)
     );
 
-    clipper #(
-        .VERTEX_WIDTH(32),
-        .FRUSTUM_WIDTH(32)
-    ) clipper_inst (
+    clipper clipper_inst (
         .clk_i(clk_i),
         .start_i(start_i),
 
@@ -358,10 +354,10 @@ module geoshader #(
         .v1_x_i(v1_x_fifo1), .v1_y_i(v1_y_fifo1), .v1_z_i(v1_z_fifo1), .v1_w_i(v1_w_fifo1),
         .v2_x_i(v2_x_fifo1), .v2_y_i(v2_y_fifo1), .v2_z_i(v2_z_fifo1), .v2_w_i(v2_w_fifo1),
 
-        .plane_a_i(curr_plane_a),
-        .plane_b_i(curr_plane_b),
-        .plane_c_i(curr_plane_c),
-        .plane_d_i(curr_plane_d),
+        .plane_normal_x_i(curr_plane_a),
+        .plane_normal_y_i(curr_plane_b),
+        .plane_normal_z_i(curr_plane_c),
+        .plane_offset_i(curr_plane_d),
 
         .clipped_v0_x_o(v0_x_fifo2_t1), .clipped_v0_y_o(v0_y_fifo2_t1), .clipped_v0_z_o(v0_z_fifo2_t1), .clipped_v0_w_o(v0_w_fifo2_t1),
         .clipped_v1_x_o(v1_x_fifo2_t1), .clipped_v1_y_o(v1_y_fifo2_t1), .clipped_v1_z_o(v1_z_fifo2_t1), .clipped_v1_w_o(v1_w_fifo2_t1),

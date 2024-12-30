@@ -1,3 +1,4 @@
+/* verilator lint_off MODDUP */
 module sfifo2 #(
     parameter FW = 64, 
     parameter DW = 8
