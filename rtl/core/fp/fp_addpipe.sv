@@ -87,7 +87,7 @@ module fp_addpipe #(
 
         // Stage 3 (output)
         case (opcode_reg)
-            4'b0000, 4'b0001, 4'b0010: result <= std_result_stage2; // Add, Sub, Max, Min
+            4'b0000, 4'b0100, 4'b0001, 4'b0010: result <= std_result_stage2; // Add, Sub, Max, Min
             4'b1000: result <= floor_result_reg;
             4'b1001: result <= ceil_result_reg;
             default: result <= 'x; // Undefined operation
