@@ -44,7 +44,7 @@ module fpu #(
 
     always_comb begin
         case(opcode)
-            4'b0000, 4'b0100, 4'b0001, 4'b0010: result = result_std;
+            4'b0000, 4'b0100, 4'b0001, 4'b0010, 4'b1000, 4'b1001: result = result_std;
             4'b0011: result = result_mul;
             default: result = result_misc;     
         endcase
