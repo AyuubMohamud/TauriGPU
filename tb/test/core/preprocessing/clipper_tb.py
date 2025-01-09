@@ -900,8 +900,6 @@ async def test_clipper_all_outside_case(dut):
             print("Changed to:", current_outputs)
             assert False, "Outputs not stable when triangle culled"
 
-# @cocotb.test() # 2'd1
-
     """Test clipping when exactly one vertex is inside the plane."""
 
     # Create and start clock

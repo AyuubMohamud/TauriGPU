@@ -1,9 +1,61 @@
 import numpy as np
+from cocotb.handle import BinaryValue  # Import BinaryValue for type checking
+
+class MemoryBuffer:
+    """
+    Memory buffer that the hardware interacts with.
+    """
+
+    def __init__(self, size, z_size):
+        self.size = size
+        self.z_size = z_size
+        self.memory = np.full(self.size, (1 << z_size) - 1, dtype=np.uint32)
+
+    def mem_read(self, addr):
+        """
+        Read the z-value from the specified address.
+        """
+        # Convert BinaryValue to integer if needed
+        if isinstance(addr, BinaryValue):
+            addr_int = addr.integer
+        else:
+            addr_int = int(addr)
+
+        if 0 <= addr_int < self.size:
+            return self.memory[addr_int]
+        else:
+            raise ValueError(f"Address {addr_int} is out of bounds.")
+
+    def mem_write(self, addr, z_value):
+        """
+        Write the z-value to the specified address.
+        """
+        # Convert BinaryValue to integer if needed
+        if isinstance(addr, BinaryValue):
+            addr_int = addr.integer
+        else:
+            addr_int = int(addr)
+
+        if 0 <= addr_int < self.size:
+            # Convert BinaryValue to integer if needed
+            if isinstance(z_value, BinaryValue):
+                z_int = z_value.integer
+            else:
+                z_int = int(z_value)
+            # Ensure z_value is non-negative and fits in z_size bits
+            self.memory[addr_int] = max(0, z_int) & ((1 << self.z_size) - 1)
+        else:
+            raise ValueError(f"Address {addr_int} is out of bounds.")
+
+    def flush(self):
+        """
+        Reset the entire buffer to the maximum depth value.
+        """
+        self.memory.fill((1 << self.z_size) - 1)
 
 class SoftwareZBuffer:
     """
-    Reference Z-buffer model that mimics external memory (DDR) usage.
-    We store one-dimensional array 'memory' and do read/write by address.
+    Reference Z-buffer model that maintains the "correct" state of the Z-buffer.
     """
 
     def __init__(self, x_res, y_res, z_size, base_address=0):
@@ -17,129 +69,77 @@ class SoftwareZBuffer:
         self.memory = np.full(self.size, (1 << z_size) - 1, dtype=np.uint32)
 
     def addr_from_xy(self, x, y):
+        """
+        Calculate the memory address from pixel coordinates (x, y).
+        """
         offset = y * self.x_res + x
         return self.base_address + offset
 
     def mem_read(self, addr):
+        """
+        Read the z-value from the specified address.
+        """
         idx = addr - self.base_address
         if 0 <= idx < self.size:
             return self.memory[idx]
         else:
-            # Out of range – handle as you prefer (raise error or return something)
-            return 0
+            raise ValueError(f"Address {addr} is out of bounds.")
 
-    def mem_write(self, addr, z_value: int):
+    def mem_write(self, addr, z_value, z_func):
+        """
+        Write the z-value to the specified address.
+        Args:
+            addr: Memory address to write to
+            z_value: Z value to write
+            z_func: Depth function to use for comparison (e.g., GL_LESS)
+        """
         idx = addr - self.base_address
         if 0 <= idx < self.size:
-            # Ensure z_value is non-negative and fits in z_size bits
-            self.memory[idx] = max(0, z_value) & ((1 << self.z_size) - 1)
+            if isinstance(z_value, BinaryValue):
+                z_int = z_value.integer
+            else:
+                z_int = int(z_value)
+            
+            # Get current value and perform depth test before writing
+            curr_z = self.memory[idx]
+            if self.depth_func_pass(z_int, curr_z, z_func):
+                self.memory[idx] = max(0, z_int) & ((1 << self.z_size) - 1)
+        else:
+            raise ValueError(f"Address {addr} is out of bounds.")
 
     def depth_func_pass(self, fragment_z, stored_z, func):
-        if func == 0b000:   # GL_NEVER
-            return False
-        elif func == 0b001: # GL_LESS
-            return fragment_z < stored_z
-        elif func == 0b010: # GL_LEQUAL
-            return fragment_z <= stored_z
-        elif func == 0b011: # GL_GREATER
-            return fragment_z > stored_z
-        elif func == 0b100: # GL_GEQUAL
-            return fragment_z >= stored_z
-        elif func == 0b101: # GL_EQUAL
-            return fragment_z == stored_z
-        elif func == 0b110: # GL_NOTEQUAL
-            return fragment_z != stored_z
-        elif func == 0b111: # GL_ALWAYS
-            return True
+        """
+        Determine if the fragment passes the depth test based on the depth function.
+        """
+        # Convert BinaryValue to integer if needed
+        if isinstance(fragment_z, BinaryValue):
+            frag_z = fragment_z.integer
         else:
-            return fragment_z < stored_z  # default GL_LESS
+            frag_z = int(fragment_z)
+
+        if isinstance(stored_z, BinaryValue):
+            stor_z = stored_z.integer
+        else:
+            stor_z = int(stored_z)
+
+        # Define depth function logic - no change needed here actually
+        depth_funcs = {
+            0b000: lambda f, s: False,       # GL_NEVER
+            0b001: lambda f, s: f < s,       # GL_LESS
+            0b010: lambda f, s: f <= s,      # GL_LEQUAL
+            0b011: lambda f, s: f > s,       # GL_GREATER
+            0b100: lambda f, s: f >= s,      # GL_GEQUAL
+            0b101: lambda f, s: f == s,      # GL_EQUAL
+            0b110: lambda f, s: f != s,      # GL_NOTEQUAL
+            0b111: lambda f, s: True,        # GL_ALWAYS
+        }
+
+        # Get the comparison function or default to GL_LESS
+        compare = depth_funcs.get(func, lambda f, s: f < s)
+        return compare(frag_z, stor_z)
 
     def flush(self):
+        """
+        Reset the entire Z-buffer to the maximum depth value.
+        """
         self.memory.fill((1 << self.z_size) - 1)
-
-def main():
-    # Initialize z-buffer with test resolution
-    x_res = 8  # Small resolution for easy testing
-    y_res = 4
-    z_size = 8
-    base_addr = 0x1000  # Test non-zero base address
-    
-    zbuf = SoftwareZBuffer(x_res, y_res, z_size, base_addr)
-    
-    # Test 1: Basic write and read
-    print("\nTest 1: Basic write/read")
-    test_x, test_y = 1, 1
-    test_z = 100
-    addr = zbuf.addr_from_xy(test_x, test_y)
-    
-    print(f"Writing z={test_z} at (x={test_x}, y={test_y})")
-    zbuf.mem_write(addr, test_z)
-    read_z = zbuf.mem_read(addr)
-    print(f"Read back z={read_z}")
-    assert read_z == test_z, f"Read/write mismatch: wrote {test_z}, read {read_z}"
-
-    # Test 2: Depth comparison functions
-    print("\nTest 2: Testing depth functions")
-    fragment_z = 100
-    stored_z = 150
-    
-    print(f"Fragment Z: {fragment_z}, Stored Z: {stored_z}")
-    for func in range(8):  # Test all 8 depth functions
-        result = zbuf.depth_func_pass(fragment_z, stored_z, func)
-        print(f"Depth func {func:03b}: {result}")
-
-    # Test 3: Memory pattern test
-    print("\nTest 3: Memory pattern test")
-    # Write increasing values in a diagonal pattern
-    for i in range(min(x_res, y_res)):
-        addr = zbuf.addr_from_xy(i, i)
-        zbuf.mem_write(addr, i * 20)
-    
-    # Read back and verify
-    print("Diagonal pattern (should increase by 20):")
-    for i in range(min(x_res, y_res)):
-        addr = zbuf.addr_from_xy(i, i)
-        val = zbuf.mem_read(addr)
-        print(f"Position ({i},{i}): {val}")
-
-    # Test 4: Flush operation
-    print("\nTest 4: Flush operation")
-    print("Before flush (showing first few values):")
-    for i in range(min(4, zbuf.size)):
-        print(f"Address {base_addr + i}: {zbuf.mem_read(base_addr + i)}")
-    
-    zbuf.flush()
-    print("\nAfter flush (showing first few values):")
-    max_z = (1 << z_size) - 1
-    for i in range(min(4, zbuf.size)):
-        val = zbuf.mem_read(base_addr + i)
-        print(f"Address {base_addr + i}: {val}")
-        assert val == max_z, f"Flush didn't set correct value: expected {max_z}, got {val}"
-
-    # Test 5: Bounds checking
-    print("\nTest 5: Bounds checking")
-    out_of_bounds_addr = base_addr + x_res * y_res
-    print(f"Reading from out of bounds address {out_of_bounds_addr}")
-    val = zbuf.mem_read(out_of_bounds_addr)
-    print(f"Returned value: {val}")
-
-    # Test 6: Full frame write/read
-    print("\nTest 6: Full frame write/read")
-    # Write a simple depth gradient
-    for y in range(y_res):
-        for x in range(x_res):
-            depth = (x + y) % 256  # Simple pattern
-            addr = zbuf.addr_from_xy(x, y)
-            zbuf.mem_write(addr, depth)
-    
-    print("Buffer contents:")
-    for y in range(y_res):
-        row = []
-        for x in range(x_res):
-            addr = zbuf.addr_from_xy(x, y)
-            row.append(str(zbuf.mem_read(addr)).rjust(3))
-        print(" ".join(row))
-
-if __name__ == "__main__":
-    main()
-
