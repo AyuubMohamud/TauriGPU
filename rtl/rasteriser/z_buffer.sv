@@ -55,9 +55,11 @@ module z_buffer #(
     } z_func_t;
 
     // State definitions
-    typedef enum logic [1:0] {
+    typedef enum logic [2:0] {
         IDLE,
-        RENDER,
+        READ,
+        WRITE,
+        RENDER_DONE,
         FLUSH,
         DONE
     } state_t;
@@ -68,8 +70,10 @@ module z_buffer #(
     always_comb begin
         next_state = curr_state;
         case (curr_state)
-            IDLE: next_state = start_i ? (flush_i ? FLUSH : RENDER) : IDLE;
-            RENDER: next_state = update_complete ? DONE : RENDER;
+            IDLE: next_state = start_i ? (flush_i ? FLUSH : READ) : IDLE;
+            READ: next_state = (data_r_valid && depth_comparison_result) ? WRITE : RENDER_DONE;
+            WRITE: next_state = (data_w_ready) ? RENDER_DONE : WRITE;
+            RENDER_DONE: next_state = DONE;
             FLUSH: next_state = flush_done_o ? DONE : FLUSH;
             DONE: next_state = IDLE;
         endcase
@@ -117,38 +121,35 @@ module z_buffer #(
                     data_w_valid <= 1'b0;
                 end
 
-                RENDER: begin
-                    if (!update_complete) begin
-                        if (z_depth_func_i != GL_NEVER && z_depth_func_i != GL_ALWAYS) begin
-                            // Read phase
-                            buf_r_w <= 1'b1;
-                            buf_addr <= addr;
-                            data_r_ready <= 1'b1;
-                            data_w_valid <= 1'b0;
-                            
-                            if (data_r_valid) begin
-                                depth_pass_o <= depth_comparison_result;
-                                need_update <= depth_comparison_result;
-                                data_r_ready <= 1'b0;
-                            end
-                        end else begin
-                            // Direct result for NEVER/ALWAYS
-                            depth_pass_o <= depth_comparison_result;
-                            need_update <= depth_comparison_result;
-                        end
-
-                        if (need_update) begin
-                            // Write phase
-                            buf_r_w <= 1'b0;
-                            buf_data_w <= pixel_z_i;
-                            buf_addr <= addr;
-                            data_w_valid <= 1'b1;
-                            need_update <= 1'b0;
-                            update_complete <= data_w_ready;
-                        end else begin
-                            update_complete <= 1'b1;
-                        end
+                READ: begin
+                    buf_r_w <= 1'b1;
+                    buf_addr <= addr;
+                    data_r_ready <= 1'b1;
+                    data_w_valid <= 1'b0;
+                    
+                    if (data_r_valid) begin
+                        depth_pass_o <= depth_comparison_result;
+                        need_update <= depth_comparison_result;
+                        data_r_ready <= 1'b0;
                     end
+                end
+
+                WRITE: begin
+                    buf_r_w <= 1'b0;
+                    buf_data_w <= pixel_z_i;
+                    buf_addr <= addr;
+                    data_w_valid <= 1'b1;
+                    
+                    if (data_w_ready) begin
+                        need_update <= 1'b0;
+                        data_w_valid <= 1'b0;
+                    end
+                end
+
+                RENDER_DONE: begin
+                    update_complete <= 1'b1;
+                    data_w_valid <= 1'b0;
+                    data_r_ready <= 1'b0;
                 end
 
                 FLUSH: begin

@@ -48,7 +48,17 @@ async def test_new_z_buffer(dut):
 
     # Counters
     mismatches = 0
-    num_tests = 10
+    num_tests = 1
+
+    # Clearer states for debugging
+    state_dict = {
+        0: "IDLE",
+        1: "READ",
+        2: "WRITE",
+        3: "RENDER_DONE",
+        4: "FLUSH",
+        5: "DONE"
+    }
 
     for i in tqdm(range(num_tests), desc="ZBuffer Tests"):
         # Generate random test values
@@ -82,9 +92,20 @@ async def test_new_z_buffer(dut):
 
         # Keep running until DUT is done
         while not dut.done_o.value:
-            print(f"dut.data_r_ready = {dut.data_r_ready.value}, dut.data_w_valid = {dut.data_w_valid.value}")
+
+            ''' Logging for handshake signals debugging '''
+
+            print(f"Read Ready = {dut.data_r_ready.value}, Read Valid = {dut.data_r_valid.value}")
+            print(f"Write Ready = {dut.data_w_ready.value}, Write Valid = {dut.data_w_valid.value}\n")
+
+            print(f"State = {state_dict[int(dut.curr_state.value)]}")
+            print(f"DUT Depth Pass = {bool(dut.depth_pass_o.value)}")
+            print(f"DUT depth_comparison_result = {bool(dut.depth_comparison_result.value)}\n")
+            
+
             # If DUT wants to read from memory
             if dut.data_r_ready.value:
+                print(f"DUT has requested read at address {dut.buf_addr.value}")
                 hw_addr = dut.buf_addr.value
                 # Provide data from MemoryBuffer
                 dut.buf_data_r.value = int(mem_buf.mem_read(hw_addr))
@@ -98,6 +119,7 @@ async def test_new_z_buffer(dut):
 
             # If DUT wants to write to memory
             if dut.data_w_valid.value and dut.data_w_ready.value:
+                print(f"DUT has requested write at address {dut.buf_addr.value}")
                 hw_addr = dut.buf_addr.value
                 data_to_write = dut.buf_data_w.value
                 mem_buf.mem_write(hw_addr, data_to_write)
