@@ -78,7 +78,13 @@ module z_buffer #(
                     next_state = READ;  // Stay in READ until we get valid data
                 end
             end
-            WRITE: next_state = (data_w_ready) ? RENDER_DONE : WRITE;
+            WRITE: begin
+                if (data_w_valid && data_w_ready) begin
+                    next_state = RENDER_DONE;
+                end else begin
+                    next_state = WRITE;  // Stay in WRITE until write completes
+                end
+            end
             RENDER_DONE: next_state = DONE;
             FLUSH: next_state = flush_done_o ? DONE : FLUSH;
             DONE: next_state = IDLE;
@@ -143,12 +149,15 @@ module z_buffer #(
                 end
 
                 WRITE: begin
-                    buf_r_w <= 1'b0;
-                    buf_data_w <= pixel_z_i;
-                    buf_addr <= addr;
-                    data_w_valid <= 1'b1;
-                    
-                    if (data_w_ready) begin
+                    if (!data_w_valid) begin
+                        // Initialize write operation
+                        buf_r_w <= 1'b0;
+                        buf_data_w <= pixel_z_i;
+                        buf_addr <= addr;
+                        data_w_valid <= 1'b1;
+                    end
+                    else if (data_w_ready) begin
+                        // Write completed
                         need_update <= 1'b0;
                         data_w_valid <= 1'b0;
                     end
