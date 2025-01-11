@@ -38,9 +38,10 @@ module z_buffer #(
     logic [ADDR_SIZE-1:0] addr;
     logic depth_comparison_result;
     
-    // Calculate pixel offset
+    // Calculate pixel offset - ensure proper width handling
+    logic [X_PIXEL_SIZE+Y_PIXEL_SIZE-1:0] offset;
     assign offset = pixel_y_i * X_RES + pixel_x_i;
-    assign addr = buffer_base_address_i + offset;
+    assign addr = buffer_base_address_i + { {ADDR_SIZE-(X_PIXEL_SIZE+Y_PIXEL_SIZE){1'b0}}, offset };
 
     // Depth comparison function types
     typedef enum logic [2:0] {
@@ -71,7 +72,7 @@ module z_buffer #(
         next_state = curr_state;
         case (curr_state)
             IDLE: next_state = start_i ? (flush_i ? FLUSH : READ) : IDLE;
-            READ: next_state = (data_r_valid && depth_comparison_result) ? WRITE : RENDER_DONE;
+            READ: next_state = data_r_valid ? (depth_comparison_result ? WRITE : RENDER_DONE) : READ;
             WRITE: next_state = (data_w_ready) ? RENDER_DONE : WRITE;
             RENDER_DONE: next_state = DONE;
             FLUSH: next_state = flush_done_o ? DONE : FLUSH;
@@ -83,14 +84,14 @@ module z_buffer #(
     always_comb begin
         case (z_depth_func_i)
             GL_NEVER: depth_comparison_result = 1'b0;
-            GL_LESS: depth_comparison_result = (pixel_z_i < buf_data_r);
-            GL_LEQUAL: depth_comparison_result = (pixel_z_i <= buf_data_r);
-            GL_GREATER: depth_comparison_result = (pixel_z_i > buf_data_r);
-            GL_GEQUAL: depth_comparison_result = (pixel_z_i >= buf_data_r);
-            GL_EQUAL: depth_comparison_result = (pixel_z_i == buf_data_r);
-            GL_NOTEQUAL: depth_comparison_result = (pixel_z_i != buf_data_r);
+            GL_LESS: depth_comparison_result = (data_r_valid && (pixel_z_i < buf_data_r));
+            GL_LEQUAL: depth_comparison_result = (data_r_valid && (pixel_z_i <= buf_data_r));
+            GL_GREATER: depth_comparison_result = (data_r_valid && (pixel_z_i > buf_data_r));
+            GL_GEQUAL: depth_comparison_result = (data_r_valid && (pixel_z_i >= buf_data_r));
+            GL_EQUAL: depth_comparison_result = (data_r_valid && (pixel_z_i == buf_data_r));
+            GL_NOTEQUAL: depth_comparison_result = (data_r_valid && (pixel_z_i != buf_data_r));
             GL_ALWAYS: depth_comparison_result = 1'b1;
-            default: depth_comparison_result = (pixel_z_i < buf_data_r);
+            default: depth_comparison_result = 1'b0;
         endcase
     end
 
@@ -153,15 +154,20 @@ module z_buffer #(
                 end
 
                 FLUSH: begin
-                    buf_r_w <= 1'b0;
-                    buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value
-                    data_w_valid <= 1'b1;
-                    
-                    if (data_w_ready) begin
+                    if (buf_addr == '0) begin
+                        // Initialize flush operation
+                        buf_r_w <= 1'b0;
+                        buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value
+                        buf_addr <= buffer_base_address_i;
+                        data_w_valid <= 1'b1;
+                    end
+                    else if (data_w_ready) begin
                         if (buf_addr < (buffer_base_address_i + X_RES * Y_RES - 1)) begin
                             buf_addr <= buf_addr + 1;
+                            data_w_valid <= 1'b1;
                         end else begin
                             flush_done_o <= 1'b1;
+                            data_w_valid <= 1'b0;
                         end
                     end
                 end
