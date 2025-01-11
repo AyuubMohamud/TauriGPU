@@ -48,7 +48,7 @@ async def test_new_z_buffer(dut):
 
     # Counters
     mismatches = 0
-    num_tests = 1000
+    num_tests = 8000  # 1000 tests per depth function (8 functions)
 
     # Clearer states for debugging
     state_dict = {
@@ -65,7 +65,8 @@ async def test_new_z_buffer(dut):
         px = random.randint(0, x_res - 1)
         py = random.randint(0, y_res - 1)
         pz = random.randint(0, (1 << z_size) - 1)
-        z_func = 1  # Let's always do GL_LESS in this example
+        # Test all depth functions in sequence
+        z_func = i % 8  # Cycle through all 8 depth functions
 
         # Set DUT inputs
         dut.pixel_x_i.value = px
@@ -131,7 +132,18 @@ async def test_new_z_buffer(dut):
         if hw_z != ref_z:
             mismatches += 1
             print("----------------------------------------")
-            print(f"Test {i + 1} failed at (x, y) = ({px}, {py}) with depth function = {z_func}")
+            # Map depth function to OpenGL enum name
+            depth_func_names = {
+                0: "GL_NEVER",
+                1: "GL_LESS",
+                2: "GL_LEQUAL",
+                3: "GL_GREATER",
+                4: "GL_GEQUAL",
+                5: "GL_EQUAL",
+                6: "GL_NOTEQUAL",
+                7: "GL_ALWAYS"
+            }
+            print(f"Test {i + 1} failed at (x, y) = ({px}, {py}) with depth function = {depth_func_names[z_func]}")
             print("----------------------------------------")
             print(f"input_z   = {pz}")
             print(f"old_z     = {old_z}  (before update)")
