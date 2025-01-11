@@ -71,7 +71,13 @@ module z_buffer #(
         next_state = curr_state;
         case (curr_state)
             IDLE: next_state = start_i ? (flush_i ? FLUSH : READ) : IDLE;
-            READ: next_state = (data_r_valid && depth_comparison_result) ? WRITE : RENDER_DONE;
+            READ: begin
+                if (data_r_valid && data_r_ready) begin
+                    next_state = depth_comparison_result ? WRITE : RENDER_DONE;
+                end else begin
+                    next_state = READ;  // Stay in READ until we get valid data
+                end
+            end
             WRITE: next_state = (data_w_ready) ? RENDER_DONE : WRITE;
             RENDER_DONE: next_state = DONE;
             FLUSH: next_state = flush_done_o ? DONE : FLUSH;
@@ -124,13 +130,15 @@ module z_buffer #(
                 READ: begin
                     buf_r_w <= 1'b1;
                     buf_addr <= addr;
-                    data_r_ready <= 1'b1;
                     data_w_valid <= 1'b0;
                     
-                    if (data_r_valid) begin
+                    // Only assert ready when we're actually in READ state
+                    data_r_ready <= (next_state == READ);
+                    
+                    // Handle the read response
+                    if (data_r_valid && data_r_ready) begin
                         depth_pass_o <= depth_comparison_result;
                         need_update <= depth_comparison_result;
-                        data_r_ready <= 1'b0;
                     end
                 end
 
