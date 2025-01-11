@@ -65,8 +65,8 @@ async def test_new_z_buffer(dut):
         px = random.randint(0, x_res - 1)
         py = random.randint(0, y_res - 1)
         pz = random.randint(0, (1 << z_size) - 1)
-        # Test all depth functions in sequence
-        z_func = i % 8  # Cycle through all 8 depth functions
+        # Randomly select a depth function
+        z_func = random.randint(0, 7)  # Randomly choose between 0-7
 
         # Set DUT inputs
         dut.pixel_x_i.value = px
