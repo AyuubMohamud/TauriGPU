@@ -48,7 +48,7 @@ async def test_new_z_buffer(dut):
 
     # Counters
     mismatches = 0
-    num_tests = 1
+    num_tests = 1000
 
     # Clearer states for debugging
     state_dict = {
