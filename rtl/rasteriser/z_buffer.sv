@@ -177,14 +177,18 @@ module z_buffer #(
                         buf_addr <= buffer_base_address_i;
                         data_w_valid <= 1'b1;
                     end
-                    else if (data_w_ready) begin
+                    else if (data_w_valid && data_w_ready) begin
                         if (buf_addr < (buffer_base_address_i + X_RES * Y_RES - 1)) begin
                             buf_addr <= buf_addr + 1;
-                            data_w_valid <= 1'b1;
+                            data_w_valid <= 1'b1;  // Keep valid for next write
                         end else begin
                             flush_done_o <= 1'b1;
-                            data_w_valid <= 1'b0;
+                            data_w_valid <= 1'b0;  // Done writing
                         end
+                    end
+                    else if (!data_w_ready) begin
+                        // If not ready, keep data_w_valid asserted but don't increment address
+                        data_w_valid <= 1'b1;
                     end
                 end
 
