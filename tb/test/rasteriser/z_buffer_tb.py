@@ -101,9 +101,37 @@ async def test_new_z_buffer(dut):
             await RisingEdge(dut.clk_i)
             dut.start_i.value = 0
             
-            # Wait for flush to complete
+            # Wait for flush to complete with debug logging
+            flush_cycles = 0
+            max_flush_cycles = x_res * y_res * 2  # Allow 2 cycles per pixel as timeout
+            
             while not dut.flush_done_o.value:
                 await RisingEdge(dut.clk_i)
+                flush_cycles += 1
+                
+                # Print memory buffer state every 10 cycles
+                if flush_cycles % 10 == 0:
+                    print(f"\nFlush cycle {flush_cycles}, state = {state_dict[int(dut.curr_state.value)]}")
+                    print("MemoryBuffer State during flush:")
+                    for yy in range(y_res):
+                        row_start = yy * x_res
+                        row_values = mem_buf.memory[row_start : row_start + x_res]
+                        print(f"Row {yy}: {row_values}")
+                    
+                    print(f"Current address: {dut.buf_addr.value}")
+                    print(f"data_w_valid: {dut.data_w_valid.value}")
+                    print(f"data_w_ready: {dut.data_w_ready.value}")
+                    print(f"flush_done_o: {dut.flush_done_o.value}")
+                
+                # Timeout check
+                if flush_cycles > max_flush_cycles:
+                    print("\nFlush operation timed out!")
+                    print("Final MemoryBuffer State:")
+                    for yy in range(y_res):
+                        row_start = yy * x_res
+                        row_values = mem_buf.memory[row_start : row_start + x_res]
+                        print(f"Row {yy}: {row_values}")
+                    assert False, f"Flush operation timed out after {max_flush_cycles} cycles"
             
             # Verify flush completed correctly
             for addr in range(x_res * y_res):
