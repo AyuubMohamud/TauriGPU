@@ -37,6 +37,7 @@ module z_buffer #(
     logic [$clog2(Y_RES*X_RES)-1:0] offset;
     logic [ADDR_SIZE-1:0] addr;
     logic depth_comparison_result;
+    logic [$clog2(Y_RES*X_RES)-1:0] flush_counter; // Counter for flush operation
     
     // Calculate pixel offset
     assign offset = pixel_y_i * X_RES + pixel_x_i;
@@ -170,31 +171,29 @@ module z_buffer #(
                 end
 
                 FLUSH: begin
-                    // Initialize on state entry
-                    if (curr_state != next_state && next_state == FLUSH) begin
-                        buf_addr <= buffer_base_address_i;
-                        buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value (255 for 8-bit)
-                        data_w_valid <= 1'b1;
+                    // Initialize flush counter on state entry
+                    if (curr_state != FLUSH) begin
+                        flush_counter <= 0;
                         flush_done_o <= 1'b0;
                         buf_r_w <= 1'b0; // Write mode
+                        data_w_valid <= 1'b1;
                     end
                     
                     // Handle write operations
-                    if (data_w_valid) begin
-                        if (data_w_ready) begin
-                            // Write completed for current address
-                            if (buf_addr < (buffer_base_address_i + X_RES * Y_RES - 1)) begin
-                                // Move to next address
-                                buf_addr <= buf_addr + 1;
-                                data_w_valid <= 1'b1; // Keep valid for next write
-                            end else begin
-                                // Reached end of buffer
-                                flush_done_o <= 1'b1;
-                                data_w_valid <= 1'b0; // Done writing
-                                buf_addr <= '0; // Reset address counter
-                            end
+                    if (data_w_valid && data_w_ready) begin
+                        // Write current address
+                        buf_addr <= buffer_base_address_i + flush_counter;
+                        buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value
+                        
+                        // Increment counter and check if done
+                        if (flush_counter < (X_RES * Y_RES - 1)) begin
+                            flush_counter <= flush_counter + 1;
+                        end else begin
+                            // Reached end of buffer
+                            flush_done_o <= 1'b1;
+                            flush_counter <= 0; // Reset counter
+                            data_w_valid <= 1'b0; // Done writing
                         end
-                        // else: keep data_w_valid high and wait for data_w_ready
                     end
                 end
 
