@@ -171,29 +171,33 @@ module z_buffer #(
                 end
 
                 FLUSH: begin
-                    // Initialize flush counter on state entry
-                    if (flush_counter == 0) begin
+                    // Initialize on state entry
+                    if (curr_state != FLUSH) begin
+                        flush_counter <= 0;
                         flush_done_o <= 1'b0;
                         buf_r_w <= 1'b0; // Write mode
                         data_w_valid <= 1'b1;
-
+                        buf_data_w <= {Z_SIZE{1'b1}}; // Max depth value
                     end
                     
                     // Handle write operations
-                    if (data_w_valid && data_w_ready) begin
-                        // Write current address
+                    if (data_w_valid) begin
+                        // Set address and data
                         buf_addr <= buffer_base_address_i + flush_counter;
-                        buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value
                         
-                        // Increment counter and check if done
-                        if (flush_counter < (X_RES * Y_RES - 1)) begin
-                            flush_counter <= flush_counter + 1;
-                        end else begin
-                            // Reached end of buffer
-                            flush_done_o <= 1'b1;
-                            flush_counter <= 0; // Reset counter
-                            data_w_valid <= 1'b0; // Done writing
+                        if (data_w_ready) begin
+                            // Write completed - increment counter
+                            if (flush_counter < (X_RES * Y_RES - 1)) begin
+                                flush_counter <= flush_counter + 1;
+                                data_w_valid <= 1'b1; // Keep valid for next write
+                            end else begin
+                                // Reached end of buffer
+                                flush_done_o <= 1'b1;
+                                flush_counter <= 0;
+                                data_w_valid <= 1'b0; // Done writing
+                            end
                         end
+                        // else: keep data_w_valid high and wait for data_w_ready
                     end
                 end
 
