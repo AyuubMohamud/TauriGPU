@@ -37,7 +37,7 @@ async def test_new_z_buffer(dut):
 
     # Initialize handshake signals
     dut.data_r_valid.value = 0
-    dut.data_w_ready.value = 1  # Always ready to accept writes
+    dut.data_w_ready.value = 0  # Start with write ready deasserted
     dut.buf_data_r.value = 0
 
     # Wait one rising edge for stable reset conditions
@@ -103,35 +103,49 @@ async def test_new_z_buffer(dut):
             
             # Wait for flush to complete with debug logging
             flush_cycles = 0
-            max_flush_cycles = x_res * y_res * 2  # Allow 2 cycles per pixel as timeout
             
             while not dut.flush_done_o.value:
                 await RisingEdge(dut.clk_i)
                 flush_cycles += 1
                 
-                # Print memory buffer state every 10 cycles
-                if flush_cycles % 10 == 0:
-                    print(f"\nFlush cycle {flush_cycles}, state = {state_dict[int(dut.curr_state.value)]}")
-                    print("MemoryBuffer State during flush:")
-                    for yy in range(y_res):
-                        row_start = yy * x_res
-                        row_values = mem_buf.memory[row_start : row_start + x_res]
-                        print(f"Row {yy}: {row_values}")
-                    
-                    print(f"Current address: {dut.buf_addr.value}")
-                    print(f"data_w_valid: {dut.data_w_valid.value}")
-                    print(f"data_w_ready: {dut.data_w_ready.value}")
-                    print(f"flush_done_o: {dut.flush_done_o.value}")
+                ''' Debugging signals for flush operation '''
+                print(f"\nFlush cycle {flush_cycles}, state = {state_dict[int(dut.curr_state.value)]}")
+                print("MemoryBuffer State during flush:")
+                for yy in range(y_res):
+                    row_start = yy * x_res
+                    row_values = mem_buf.memory[row_start : row_start + x_res]
+                    print(f"Row {yy}: {row_values}")
+                
+                print(f"dut.buf_addr = {dut.buf_addr.value}")
+                print(f"flush counter = {int(dut.flush_counter.value)}")
+                print(f"Write Valid = {dut.data_w_valid.value}, Write Ready = {dut.data_w_ready.value}")
+                
+                print(f"Current address: {dut.buf_addr.value}")
+                print(f"data_w_valid: {dut.data_w_valid.value}")
+                print(f"data_w_ready: {dut.data_w_ready.value}")
+                print(f"flush_done_o: {dut.flush_done_o.value}")
+                print(f"X_RES*Y_RES = {dut.X_RES.value * dut.Y_RES.value}")
+                
+                if dut.data_w_valid.value:
+                    print(f"DUT has requested write at address {int(dut.buf_addr.value)}")
+                    # Acknowledge write request
+                    dut.data_w_ready.value = 1
+                    await RisingEdge(dut.clk_i)
+                    dut.data_w_ready.value = 0  # Deassert after one cycle
+                    # Perform the write
+                    hw_addr = dut.buf_addr.value
+                    data_to_write = dut.buf_data_w.value
+                    mem_buf.mem_write(hw_addr, data_to_write)
                 
                 # Timeout check
-                if flush_cycles > max_flush_cycles:
+                if flush_cycles > 25:  # Adjust timeout as needed
                     print("\nFlush operation timed out!")
                     print("Final MemoryBuffer State:")
                     for yy in range(y_res):
                         row_start = yy * x_res
                         row_values = mem_buf.memory[row_start : row_start + x_res]
                         print(f"Row {yy}: {row_values}")
-                    assert False, f"Flush operation timed out after {max_flush_cycles} cycles"
+                    assert False, f"Flush operation timed out after {flush_cycles} cycles"
             
             # Verify flush completed correctly
             for addr in range(x_res * y_res):
@@ -145,6 +159,8 @@ async def test_new_z_buffer(dut):
             # Also flush the reference model
             szbuf.flush()
         
+        print("----------------------------------------")
+
         # Start the DUT operation
         dut.start_i.value = 1
         await RisingEdge(dut.clk_i)
@@ -153,20 +169,16 @@ async def test_new_z_buffer(dut):
         # Keep running until DUT is done
         while not dut.done_o.value:
 
-            ''' Logging for handshake signals debugging '''
-
-            # print(f"Read Ready = {dut.data_r_ready.value}, Read Valid = {dut.data_r_valid.value}")
-            # print(f"Write Ready = {dut.data_w_ready.value}, Write Valid = {dut.data_w_valid.value}\n")
-
-            # print(f"State = {state_dict[int(dut.curr_state.value)]}")
-            # print(f"DUT Depth Pass = {bool(dut.depth_pass_o.value)}")
-            # print(f"DUT depth_comparison_result = {bool(dut.depth_comparison_result.value)}\n")
+            ''' Debugging signals for handshake signals '''
+            print(f"Read Ready = {dut.data_r_ready.value}, Read Valid = {dut.data_r_valid.value}")
+            print(f"Write Ready = {dut.data_w_ready.value}, Write Valid = {dut.data_w_valid.value}\n")
+            print(f"State = {state_dict[int(dut.curr_state.value)]}")
+            print(f"DUT Depth Pass = {bool(dut.depth_pass_o.value)}")
+            print(f"DUT depth_comparison_result = {bool(dut.depth_comparison_result.value)}\n")
             
-            ''' End of logging '''
-
             # If DUT wants to read from memory
             if dut.data_r_ready.value:
-                # print(f"DUT has requested read at address {dut.buf_addr.value}")
+                print(f"DUT has requested read at address {dut.buf_addr.value}")
                 hw_addr = dut.buf_addr.value
                 # Provide data from MemoryBuffer
                 dut.buf_data_r.value = int(mem_buf.mem_read(hw_addr))
@@ -179,8 +191,13 @@ async def test_new_z_buffer(dut):
                 await RisingEdge(dut.clk_i)
 
             # If DUT wants to write to memory
-            if dut.data_w_valid.value and dut.data_w_ready.value:
-                # print(f"DUT has requested write at address {dut.buf_addr.value}")
+            if dut.data_w_valid.value:
+                print(f"DUT has requested write at address {dut.buf_addr.value}")
+                # Acknowledge write request
+                dut.data_w_ready.value = 1
+                await RisingEdge(dut.clk_i)
+                dut.data_w_ready.value = 0  # Deassert after one cycle
+                # Perform the write
                 hw_addr = dut.buf_addr.value
                 data_to_write = dut.buf_data_w.value
                 mem_buf.mem_write(hw_addr, data_to_write)
