@@ -37,8 +37,8 @@ module z_buffer #(
     logic [$clog2(Y_RES*X_RES)-1:0] offset;
     logic [ADDR_SIZE-1:0] addr;
     logic depth_comparison_result;
-    logic [$clog2(Y_RES*X_RES)-1:0] flush_counter; // Counter for flush operation
-    
+    logic [$clog2(X_RES * Y_RES):0] flush_counter;
+
     // Calculate pixel offset
     assign offset = pixel_y_i * X_RES + pixel_x_i;
     assign addr = buffer_base_address_i + offset;
@@ -121,6 +121,7 @@ module z_buffer #(
             flush_done_o <= 1'b0;
             need_update <= 1'b0;
             update_complete <= 1'b0;
+            flush_counter <= 0;
         end else begin
             curr_state <= next_state;
             
@@ -132,6 +133,7 @@ module z_buffer #(
                     buf_r_w <= 1'b1;
                     data_r_ready <= 1'b0;
                     data_w_valid <= 1'b0;
+                    flush_counter <= 0;  // Reset flush counter
                 end
 
                 READ: begin
@@ -171,33 +173,36 @@ module z_buffer #(
                 end
 
                 FLUSH: begin
-                    // Initialize on state entry
-                    if (curr_state != FLUSH) begin
-                        flush_counter <= 0;
-                        flush_done_o <= 1'b0;
-                        buf_r_w <= 1'b0; // Write mode
-                        data_w_valid <= 1'b1;
-                        buf_data_w <= {Z_SIZE{1'b1}}; // Max depth value
-                    end
-                    
-                    // Handle write operations
-                    if (data_w_valid) begin
-                        // Set address and data
-                        buf_addr <= buffer_base_address_i + flush_counter;
-                        
-                        if (data_w_ready) begin
-                            // Write completed - increment counter
-                            if (flush_counter < (X_RES * Y_RES - 1)) begin
-                                flush_counter <= flush_counter + 1;
-                                data_w_valid <= 1'b1; // Keep valid for next write
-                            end else begin
-                                // Reached end of buffer
-                                flush_done_o <= 1'b1;
-                                flush_counter <= 0;
-                                data_w_valid <= 1'b0; // Done writing
-                            end
+                    // Loop from buffer base address 0 to end of buffer
+                    // While loop has not reached end of buffer, increment address and write 255 to buffer
+                    // For each pixel, send write request to buffer. Don't skip any pixels, wait for write to that pixel to complete.
+                    // When loop has reached end of buffer, set flush_done_o to 1
+
+                    // Use a flush counter to keep track of how many pixels have been written
+                    if (flush_counter == 0) begin
+                        // Initialize flush operation
+                        buf_r_w <= 1'b0;  // Write operation
+                        buf_data_w <= {Z_SIZE{1'b1}};  // Maximum depth value (e.g., 255 for Z_SIZE=8)
+                        buf_addr <= buffer_base_address_i + flush_counter;  // Start from base address
+                        data_w_valid <= 1'b1;  // Signal that write data is valid
+                        if (data_w_ready && data_w_valid) begin
+                            flush_counter <= flush_counter + 1;
                         end
-                        // else: keep data_w_valid high and wait for data_w_ready
+                    end
+                    else if (flush_counter < (X_RES * Y_RES)) begin
+                        // Continue flushing
+                        if (data_w_ready) begin
+                            // Write to the next pixel
+                            buf_addr <= buffer_base_address_i + flush_counter;  // Increment address
+                            data_w_valid <= 1'b1;  // Signal that write data is valid
+                            flush_counter <= flush_counter + 1;  // Increment counter
+                        end
+                    end
+                    else begin
+                        // Flush operation complete
+                        flush_done_o <= 1'b1;  // Signal that flush is done
+                        flush_counter <= 0;  // Reset counter for next flush
+                        data_w_valid <= 1'b0;  // Deassert write valid
                     end
                 end
 
