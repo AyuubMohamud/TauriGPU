@@ -57,6 +57,7 @@ async def test_new_z_buffer(dut):
     mismatches = 0
     num_tests = 8000
     flush_probability = 0.1  # 10% chance of flush between tests
+    times_of_flushes = 0  # Track number of flush operations
 
     state_dict = {
         0: "IDLE",
@@ -146,7 +147,7 @@ async def test_new_z_buffer(dut):
                         row_start = yy * x_res
                         row_values = mem_buf.memory[row_start : row_start + x_res]
                         print(f"Row {yy}: {row_values}")
-                    assert False, f"Flush operation timed out after {flush_cycles} cycles (total flushes so far: {i})"
+                    assert False, f"Flush operation timed out after {flush_cycles} cycles (total flushes so far: {times_of_flushes})"
             
             # Verify flush completed correctly
             for addr in range(x_res * y_res):
@@ -159,6 +160,7 @@ async def test_new_z_buffer(dut):
             
             # Also flush the reference model
             szbuf.flush()
+            times_of_flushes += 1
         
         print("----------------------------------------")
 
