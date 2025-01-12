@@ -94,76 +94,6 @@ async def test_new_z_buffer(dut):
         # Update the software reference model
         szbuf.mem_write(addr, pz, z_func)
 
-        # Only flush after 10% of tests have completed
-        if i > num_tests * 0.1 and random.random() < flush_probability:
-            # Start flush operation
-            dut.flush_i.value = 1
-            dut.start_i.value = 1
-            await RisingEdge(dut.clk_i)
-            dut.start_i.value = 0
-            
-            # Wait for flush to complete with debug logging
-            flush_cycles = 0
-            
-            while not dut.flush_done_o.value:
-                await RisingEdge(dut.clk_i)
-                flush_cycles += 1
-                
-                ''' Debugging signals for flush operation '''
-                print(f"\nFlush cycle {flush_cycles}, state = {state_dict[int(dut.curr_state.value)]}")
-                print("MemoryBuffer State during flush:")
-                for yy in range(y_res):
-                    row_start = yy * x_res
-                    row_values = mem_buf.memory[row_start : row_start + x_res]
-                    print(f"Row {yy}: {row_values}")
-                
-                print(f"dut.buf_addr = {dut.buf_addr.value}")
-                print(f"flush counter = {int(dut.flush_counter.value)}")
-                print(f"Write Valid = {dut.data_w_valid.value}, Write Ready = {dut.data_w_ready.value}")
-                
-                print(f"Current address: {dut.buf_addr.value}")
-                print(f"data_w_valid: {dut.data_w_valid.value}")
-                print(f"data_w_ready: {dut.data_w_ready.value}")
-                print(f"flush_done_o: {dut.flush_done_o.value}")
-                print(f"X_RES*Y_RES = {dut.X_RES.value * dut.Y_RES.value}")
-                
-                if dut.data_w_valid.value:
-                    print(f"DUT has requested write at address {int(dut.buf_addr.value)}")
-                    # Acknowledge write request
-                    dut.data_w_ready.value = 1
-                    await RisingEdge(dut.clk_i)
-                    print(f"data_w_ready: {dut.data_w_ready.value}")
-                    dut.data_w_ready.value = 0  # Deassert after one cycle
-                    # Perform the write
-                    hw_addr = dut.buf_addr.value
-                    data_to_write = dut.buf_data_w.value
-                    mem_buf.mem_write(hw_addr, data_to_write)
-                
-                # Timeout check
-                if flush_cycles > 25:  # Adjust timeout as needed
-                    print("\nFlush operation timed out!")
-                    print("Final MemoryBuffer State:")
-                    for yy in range(y_res):
-                        row_start = yy * x_res
-                        row_values = mem_buf.memory[row_start : row_start + x_res]
-                        print(f"Row {yy}: {row_values}")
-                    assert False, f"Flush operation timed out after {flush_cycles} cycles (total flushes so far: {times_of_flushes})"
-            
-            # Verify flush completed correctly
-            for addr in range(x_res * y_res):
-                hw_z = mem_buf.mem_read(addr)
-                assert hw_z == (1 << z_size) - 1, f"Flush failed at address {addr}, got {hw_z} instead of max value"
-            
-            # Reset flush signal
-            dut.flush_i.value = 0
-            await RisingEdge(dut.clk_i)
-            
-            # Also flush the reference model
-            szbuf.flush()
-            times_of_flushes += 1
-        
-        print("----------------------------------------")
-
         # Start the DUT operation
         dut.start_i.value = 1
         await RisingEdge(dut.clk_i)
@@ -243,6 +173,80 @@ async def test_new_z_buffer(dut):
                 row_values = szbuf.memory[row_start : row_start + x_res]
                 print(f"Row {yy}: {row_values}")
             print("----------------------------------------")
+
+        ''' RANDOM FLUSH OPERATION '''
+        if i > num_tests * 0.1 and random.random() < flush_probability:
+            # Start flush operation
+            dut.flush_i.value = 1
+            dut.start_i.value = 1
+            await RisingEdge(dut.clk_i)
+            dut.start_i.value = 0
+            
+            # Wait for flush to complete with debug logging
+            flush_cycles = 0
+            
+            while not dut.flush_done_o.value:
+                await RisingEdge(dut.clk_i)
+                flush_cycles += 1
+                
+                ''' Debugging signals for flush operation '''
+                print(f"\nFlush cycle {flush_cycles}, state = {state_dict[int(dut.curr_state.value)]}")
+                print("MemoryBuffer State during flush:")
+                for yy in range(y_res):
+                    row_start = yy * x_res
+                    row_values = mem_buf.memory[row_start : row_start + x_res]
+                    print(f"Row {yy}: {row_values}")
+                
+                print(f"dut.buf_addr = {int(dut.buf_addr.value)}")
+                print(f"flush counter = {int(dut.flush_counter.value)}")
+                print(f"Write Valid = {dut.data_w_valid.value}, Write Ready = {dut.data_w_ready.value}")
+                
+                print(f"Current address: {int(dut.buf_addr.value)}")
+                print(f"data_w_valid: {dut.data_w_valid.value}")
+                print(f"data_w_ready: {dut.data_w_ready.value}")
+                print(f"flush_done_o: {dut.flush_done_o.value}")
+                print(f"X_RES*Y_RES = {dut.X_RES.value * dut.Y_RES.value}")
+                
+                if dut.data_w_valid.value:
+                    print(f"DUT has requested write at address {int(dut.buf_addr.value)}")
+                    # Acknowledge write request
+                    dut.data_w_ready.value = 1
+                    await RisingEdge(dut.clk_i)
+                    print(f"data_w_ready: {dut.data_w_ready.value}")
+                    dut.data_w_ready.value = 0  # Deassert after one cycle
+                    # Perform the write
+                    hw_addr = dut.buf_addr.value
+                    data_to_write = dut.buf_data_w.value
+                    mem_buf.mem_write(hw_addr, data_to_write)
+                
+                # Timeout check
+                if flush_cycles > 20:  # Adjust timeout as needed
+                    print("\nFlush operation timed out!")
+                    print("Final MemoryBuffer State:")
+                    for yy in range(y_res):
+                        row_start = yy * x_res
+                        row_values = mem_buf.memory[row_start : row_start + x_res]
+                        print(f"Row {yy}: {row_values}")
+                    assert False, f"Flush operation timed out after {flush_cycles} cycles (total flushes so far: {times_of_flushes})"
+            
+            # Verify flush completed correctly
+            for addr in range(x_res * y_res):
+                hw_z = mem_buf.mem_read(addr)
+                assert hw_z == (1 << z_size) - 1, f"Flush failed at address {addr}, got {hw_z} instead of max value"
+            
+            # Reset flush signal
+            dut.flush_i.value = 0
+            await RisingEdge(dut.clk_i)
+            
+            # Also flush the reference model
+            szbuf.flush()
+            times_of_flushes += 1
+        
+        print("----------------------------------------")
+        print(f"flush_done_o = {dut.flush_done_o.value}")
+        print(f"done_o = {dut.done_o.value}")
+        print("----------------------------------------")
+
 
     # Final test result
     assert mismatches == 0, f"Test failed with {mismatches} mismatches out of {num_tests} tests."
