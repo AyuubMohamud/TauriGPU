@@ -53,11 +53,12 @@ async def test_new_z_buffer(dut):
     szbuf = SoftwareZBuffer(x_res, y_res, z_size, base_addr)
     mem_buf = MemoryBuffer(x_res * y_res, z_size)
 
-    # Counters
+    # Counters and tracking
     mismatches = 0
     num_tests = 1000
     flush_probability = 0.1  # 10% chance of flush between tests
     times_of_flushes = 0  # Track number of flush operations
+    flush_tests = []  # Track which test indices were flushes
 
     state_dict = {
         0: "IDLE",
@@ -145,6 +146,9 @@ async def test_new_z_buffer(dut):
         if hw_z != ref_z:
             mismatches += 1
             print("----------------------------------------")
+            # Check if previous test was a flush
+            prev_was_flush = (i > 0) and ((i-1) in flush_tests)
+            print(f"Previous test was {'a flush' if prev_was_flush else 'not a flush'}")
             # Map depth function to OpenGL enum name
             depth_func_names = {
                 0: "GL_NEVER",
@@ -248,6 +252,7 @@ async def test_new_z_buffer(dut):
             # Also flush the reference model
             szbuf.flush()
             times_of_flushes += 1
+            flush_tests.append(i)  # Record this test index as a flush
 
 
     # Final test result
