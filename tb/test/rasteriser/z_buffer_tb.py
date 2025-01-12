@@ -48,9 +48,8 @@ async def test_new_z_buffer(dut):
 
     # Counters
     mismatches = 0
-    num_tests = 8000  # 1000 tests per depth function (8 functions)
+    num_tests = 8000
 
-    # Clearer states for debugging
     state_dict = {
         0: "IDLE",
         1: "READ",
@@ -65,8 +64,8 @@ async def test_new_z_buffer(dut):
         px = random.randint(0, x_res - 1)
         py = random.randint(0, y_res - 1)
         pz = random.randint(0, (1 << z_size) - 1)
-        # Randomly select a depth function
-        z_func = random.randint(0, 7)  # Randomly choose between 0-7
+        # Test all depth functions in sequence
+        z_func = random.randint(0, 7)
 
         # Set DUT inputs
         dut.pixel_x_i.value = px
@@ -77,13 +76,13 @@ async def test_new_z_buffer(dut):
         # Calculate address
         addr = szbuf.addr_from_xy(px, py)
 
-        # Step 1: Read old_z from reference model before the update
+        # Read old_z from reference model before the update
         old_z = szbuf.mem_read(addr)
 
-        # Step 2: Evaluate pass_ref using old_z (the old stored Z)
+        # Evaluate pass_ref using old_z (the old stored Z)
         pass_ref = szbuf.depth_func_pass(pz, old_z, z_func)
 
-        # Step 3: Update the software reference model
+        # Update the software reference model
         szbuf.mem_write(addr, pz, z_func)
 
         # Start the DUT operation
@@ -96,17 +95,18 @@ async def test_new_z_buffer(dut):
 
             ''' Logging for handshake signals debugging '''
 
-            print(f"Read Ready = {dut.data_r_ready.value}, Read Valid = {dut.data_r_valid.value}")
-            print(f"Write Ready = {dut.data_w_ready.value}, Write Valid = {dut.data_w_valid.value}\n")
+            # print(f"Read Ready = {dut.data_r_ready.value}, Read Valid = {dut.data_r_valid.value}")
+            # print(f"Write Ready = {dut.data_w_ready.value}, Write Valid = {dut.data_w_valid.value}\n")
 
-            print(f"State = {state_dict[int(dut.curr_state.value)]}")
-            print(f"DUT Depth Pass = {bool(dut.depth_pass_o.value)}")
-            print(f"DUT depth_comparison_result = {bool(dut.depth_comparison_result.value)}\n")
+            # print(f"State = {state_dict[int(dut.curr_state.value)]}")
+            # print(f"DUT Depth Pass = {bool(dut.depth_pass_o.value)}")
+            # print(f"DUT depth_comparison_result = {bool(dut.depth_comparison_result.value)}\n")
             
+            ''' End of logging '''
 
             # If DUT wants to read from memory
             if dut.data_r_ready.value:
-                print(f"DUT has requested read at address {dut.buf_addr.value}")
+                # print(f"DUT has requested read at address {dut.buf_addr.value}")
                 hw_addr = dut.buf_addr.value
                 # Provide data from MemoryBuffer
                 dut.buf_data_r.value = int(mem_buf.mem_read(hw_addr))
@@ -120,12 +120,12 @@ async def test_new_z_buffer(dut):
 
             # If DUT wants to write to memory
             if dut.data_w_valid.value and dut.data_w_ready.value:
-                print(f"DUT has requested write at address {dut.buf_addr.value}")
+                # print(f"DUT has requested write at address {dut.buf_addr.value}")
                 hw_addr = dut.buf_addr.value
                 data_to_write = dut.buf_data_w.value
                 mem_buf.mem_write(hw_addr, data_to_write)
 
-        # Step 4: Compare final hardware memory vs. software reference
+        # Compare final hardware memory vs. software reference
         hw_z = mem_buf.mem_read(addr)
         ref_z = szbuf.mem_read(addr)
 
