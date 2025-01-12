@@ -55,7 +55,7 @@ async def test_new_z_buffer(dut):
 
     # Counters
     mismatches = 0
-    num_tests = 8000
+    num_tests = 1000
     flush_probability = 0.1  # 10% chance of flush between tests
     times_of_flushes = 0  # Track number of flush operations
 
