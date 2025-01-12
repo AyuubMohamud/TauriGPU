@@ -149,6 +149,12 @@ async def test_new_z_buffer(dut):
             # Check if previous test was a flush
             prev_was_flush = (i > 0) and ((i-1) in flush_tests)
             print(f"Previous test was {'a flush' if prev_was_flush else 'not a flush'}")
+            
+            # Print current state information
+            print(f"Current state: {state_dict[int(dut.curr_state.value)]}")
+            print(f"Flush done: {dut.flush_done_o.value}")
+            print(f"Start signal: {dut.start_i.value}")
+            print(f"Done signal: {dut.done_o.value}")
             # Map depth function to OpenGL enum name
             depth_func_names = {
                 0: "GL_NEVER",
@@ -241,18 +247,31 @@ async def test_new_z_buffer(dut):
                     assert False, f"Flush operation timed out after {flush_cycles} cycles (total flushes so far: {times_of_flushes})"
             
             # Verify flush completed correctly
+            flush_errors = 0
             for addr in range(x_res * y_res):
                 hw_z = mem_buf.mem_read(addr)
-                assert hw_z == (1 << z_size) - 1, f"Flush failed at address {addr}, got {hw_z} instead of max value"
+                if hw_z != (1 << z_size) - 1:
+                    print(f"Flush verification failed at addr {addr}: got {hw_z} expected {(1 << z_size) - 1}")
+                    flush_errors += 1
+            assert flush_errors == 0, f"Flush failed at {flush_errors} addresses"
             
-            # Reset flush signal
+            # Reset flush signal and wait for DUT to return to IDLE
             dut.flush_i.value = 0
-            await RisingEdge(dut.clk_i)
+            while dut.curr_state.value != 0:  # Wait until back in IDLE state
+                await RisingEdge(dut.clk_i)
             
             # Also flush the reference model
             szbuf.flush()
             times_of_flushes += 1
             flush_tests.append(i)  # Record this test index as a flush
+            
+            # Debug print flush completion
+            print(f"\nFlush completed at test {i}, total flushes: {times_of_flushes}")
+            print("MemoryBuffer after flush:")
+            for yy in range(y_res):
+                row_start = yy * x_res
+                row_values = mem_buf.memory[row_start : row_start + x_res]
+                print(f"Row {yy}: {row_values}")
 
 
     # Final test result
