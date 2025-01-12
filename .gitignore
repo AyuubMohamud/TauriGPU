@@ -14,3 +14,4 @@ tb/test/rasteriser/log.txt
 
 # Python virtual environments
 .venv/
+.aider*
