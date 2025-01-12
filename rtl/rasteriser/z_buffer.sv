@@ -170,6 +170,13 @@ module z_buffer #(
                 end
 
                 FLUSH: begin
+                    // loop from buffer base address 0 to end of buffer
+                    // while loop has not reached end of buffer, increment address and write 255 to buffer
+                    // for each pixel, send write request to buffer. Don't skip any pixels, wait for write to that pixel to complete.
+                    // when loop has reached end of buffer, set flush_done_o to 1
+                    
+                    
+
                     // Initialize on first cycle
                     if (curr_state != FLUSH) begin
                         buf_addr <= buffer_base_address_i;
