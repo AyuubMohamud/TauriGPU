@@ -170,15 +170,20 @@ module z_buffer #(
                 end
 
                 FLUSH: begin
-                    buf_r_w <= 1'b0;
-                    buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value
-                    data_w_valid <= 1'b1;
-                    
-                    if (data_w_ready) begin
+                    if (buf_addr == '0) begin
+                        // Initialize flush operation
+                        buf_r_w <= 1'b0;
+                        buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value
+                        buf_addr <= buffer_base_address_i;
+                        data_w_valid <= 1'b1;
+                    end
+                    else if (data_w_ready) begin
                         if (buf_addr < (buffer_base_address_i + X_RES * Y_RES - 1)) begin
                             buf_addr <= buf_addr + 1;
+                            data_w_valid <= 1'b1;
                         end else begin
                             flush_done_o <= 1'b1;
+                            data_w_valid <= 1'b0;
                         end
                     end
                 end
