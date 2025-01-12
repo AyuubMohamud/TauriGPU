@@ -170,32 +170,31 @@ module z_buffer #(
                 end
 
                 FLUSH: begin
-                    if (buf_addr == '0) begin
-                        // Initialize flush operation
+                    // Initialize on first cycle
+                    if (curr_state != FLUSH) begin
                         buf_r_w <= 1'b0;
-                        buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value
+                        buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value (255 for 8-bit)
                         buf_addr <= buffer_base_address_i;
                         data_w_valid <= 1'b1;
-                        flush_done_o <= 1'b0;  // Clear done flag
+                        flush_done_o <= 1'b0;
                     end
+                    // Handle writes
                     else if (data_w_valid && data_w_ready) begin
+                        // Write current address
                         if (buf_addr < (buffer_base_address_i + X_RES * Y_RES - 1)) begin
+                            // Increment to next address
                             buf_addr <= buf_addr + 1;
-                            data_w_valid <= 1'b1;  // Keep valid for next write
+                            data_w_valid <= 1'b1;
                         end else begin
-                            // Last write completed
+                            // Last address written
                             flush_done_o <= 1'b1;
-                            data_w_valid <= 1'b0;  // Done writing
+                            data_w_valid <= 1'b0;
+                            buf_addr <= '0;  // Reset address counter
                         end
                     end
+                    // Wait for write ready
                     else if (!data_w_ready) begin
-                        // If not ready, keep data_w_valid asserted but don't increment address
-                        data_w_valid <= 1'b1;
-                    end
-                    
-                    // Reset address counter when flush completes
-                    if (flush_done_o) begin
-                        buf_addr <= '0;
+                        data_w_valid <= 1'b1;  // Keep trying to write
                     end
                 end
 
