@@ -183,6 +183,7 @@ async def test_new_z_buffer(dut):
         if (i > num_tests * 0.1 and 
             random.random() < flush_probability and
             not dut.flush_done_o.value):
+            print(f"\nTest {i}: Previous operation was {'a flush' if dut.flush_done_o.value else 'not a flush'} - proceeding with new flush")
             # Start flush operation
             dut.flush_i.value = 1
             dut.start_i.value = 1
