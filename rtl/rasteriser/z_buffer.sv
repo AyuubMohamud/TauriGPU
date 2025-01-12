@@ -172,11 +172,11 @@ module z_buffer #(
 
                 FLUSH: begin
                     // Initialize flush counter on state entry
-                    if (curr_state != FLUSH) begin
-                        flush_counter <= 0;
+                    if (flush_counter == 0) begin
                         flush_done_o <= 1'b0;
                         buf_r_w <= 1'b0; // Write mode
                         data_w_valid <= 1'b1;
+
                     end
                     
                     // Handle write operations
