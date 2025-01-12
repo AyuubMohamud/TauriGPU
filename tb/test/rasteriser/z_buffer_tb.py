@@ -88,6 +88,9 @@ async def test_new_z_buffer(dut):
         # Read old_z from reference model before the update
         old_z = szbuf.mem_read(addr)
 
+        # Read old_z from hardware buffer before the update
+        old_hw_z = mem_buf.mem_read(addr)
+
         # Evaluate pass_ref using old_z (the old stored Z)
         pass_ref = szbuf.depth_func_pass(pz, old_z, z_func)
 
@@ -103,15 +106,15 @@ async def test_new_z_buffer(dut):
         while not dut.done_o.value:
 
             ''' Debugging signals for handshake signals '''
-            print(f"Read Ready = {dut.data_r_ready.value}, Read Valid = {dut.data_r_valid.value}")
-            print(f"Write Ready = {dut.data_w_ready.value}, Write Valid = {dut.data_w_valid.value}\n")
-            print(f"State = {state_dict[int(dut.curr_state.value)]}")
-            print(f"DUT Depth Pass = {bool(dut.depth_pass_o.value)}")
-            print(f"DUT depth_comparison_result = {bool(dut.depth_comparison_result.value)}\n")
+            # print(f"Read Ready = {dut.data_r_ready.value}, Read Valid = {dut.data_r_valid.value}")
+            # print(f"Write Ready = {dut.data_w_ready.value}, Write Valid = {dut.data_w_valid.value}\n")
+            # print(f"State = {state_dict[int(dut.curr_state.value)]}")
+            # print(f"DUT Depth Pass = {bool(dut.depth_pass_o.value)}")
+            # print(f"DUT depth_comparison_result = {bool(dut.depth_comparison_result.value)}\n")
             
             # If DUT wants to read from memory
             if dut.data_r_ready.value:
-                print(f"DUT has requested read at address {dut.buf_addr.value}")
+                # print(f"DUT has requested read at address {dut.buf_addr.value}")
                 hw_addr = dut.buf_addr.value
                 # Provide data from MemoryBuffer
                 dut.buf_data_r.value = int(mem_buf.mem_read(hw_addr))
@@ -125,7 +128,7 @@ async def test_new_z_buffer(dut):
 
             # If DUT wants to write to memory
             if dut.data_w_valid.value:
-                print(f"DUT has requested write at address {dut.buf_addr.value}")
+                # print(f"DUT has requested write at address {dut.buf_addr.value}")
                 # Acknowledge write request
                 dut.data_w_ready.value = 1
                 await RisingEdge(dut.clk_i)
@@ -156,7 +159,8 @@ async def test_new_z_buffer(dut):
             print(f"Test {i + 1} failed at (x, y) = ({px}, {py}) with depth function = {depth_func_names[z_func]}")
             print("----------------------------------------")
             print(f"input_z   = {pz}")
-            print(f"old_z     = {old_z}  (before update)")
+            print(f"old dut_z = {old_hw_z}  (hw model before update)")
+            print(f"old_z     = {old_z}  (ref model before update)")
             print(f"pass_ref  = {pass_ref}, pass_dut = {bool(dut.depth_pass_o.value)}")
             print(f"hw_buf_z  = {hw_z}")
             print(f"ref_buf_z = {ref_z}")
@@ -192,30 +196,30 @@ async def test_new_z_buffer(dut):
                 await RisingEdge(dut.clk_i)
                 flush_cycles += 1
                 
-                ''' Debugging signals for flush operation '''
-                print(f"\nFlush cycle {flush_cycles}, state = {state_dict[int(dut.curr_state.value)]}")
-                print("MemoryBuffer State during flush:")
-                for yy in range(y_res):
-                    row_start = yy * x_res
-                    row_values = mem_buf.memory[row_start : row_start + x_res]
-                    print(f"Row {yy}: {row_values}")
+                # ''' Debugging signals for flush operation '''
+                # print(f"\nFlush cycle {flush_cycles}, state = {state_dict[int(dut.curr_state.value)]}")
+                # print("MemoryBuffer State during flush:")
+                # for yy in range(y_res):
+                #     row_start = yy * x_res
+                #     row_values = mem_buf.memory[row_start : row_start + x_res]
+                #     print(f"Row {yy}: {row_values}")
                 
-                print(f"dut.buf_addr = {int(dut.buf_addr.value)}")
-                print(f"flush counter = {int(dut.flush_counter.value)}")
-                print(f"Write Valid = {dut.data_w_valid.value}, Write Ready = {dut.data_w_ready.value}")
+                # print(f"dut.buf_addr = {int(dut.buf_addr.value)}")
+                # print(f"flush counter = {int(dut.flush_counter.value)}")
+                # print(f"Write Valid = {dut.data_w_valid.value}, Write Ready = {dut.data_w_ready.value}")
                 
-                print(f"Current address: {int(dut.buf_addr.value)}")
-                print(f"data_w_valid: {dut.data_w_valid.value}")
-                print(f"data_w_ready: {dut.data_w_ready.value}")
-                print(f"flush_done_o: {dut.flush_done_o.value}")
-                print(f"X_RES*Y_RES = {dut.X_RES.value * dut.Y_RES.value}")
+                # print(f"Current address: {int(dut.buf_addr.value)}")
+                # print(f"data_w_valid: {dut.data_w_valid.value}")
+                # print(f"data_w_ready: {dut.data_w_ready.value}")
+                # print(f"flush_done_o: {dut.flush_done_o.value}")
+                # print(f"X_RES*Y_RES = {dut.X_RES.value * dut.Y_RES.value}")
                 
                 if dut.data_w_valid.value:
-                    print(f"DUT has requested write at address {int(dut.buf_addr.value)}")
+                    # print(f"DUT has requested write at address {int(dut.buf_addr.value)}")
                     # Acknowledge write request
                     dut.data_w_ready.value = 1
                     await RisingEdge(dut.clk_i)
-                    print(f"data_w_ready: {dut.data_w_ready.value}")
+                    # print(f"data_w_ready: {dut.data_w_ready.value}")
                     dut.data_w_ready.value = 0  # Deassert after one cycle
                     # Perform the write
                     hw_addr = dut.buf_addr.value
@@ -244,13 +248,8 @@ async def test_new_z_buffer(dut):
             # Also flush the reference model
             szbuf.flush()
             times_of_flushes += 1
-        
-        print("----------------------------------------")
-        print(f"flush_done_o = {dut.flush_done_o.value}")
-        print(f"done_o = {dut.done_o.value}")
-        print("----------------------------------------")
 
 
     # Final test result
+    print(f"Test completed with {times_of_flushes} flush operations.")
     assert mismatches == 0, f"Test failed with {mismatches} mismatches out of {num_tests} tests."
-    print(f"Test passed successfully with {times_of_flushes} flush operations completed.")
