@@ -8,6 +8,13 @@ import numpy as np
 # Make sure these imports match your actual file locations/names
 from ref_model.z_buffer_ref import SoftwareZBuffer, MemoryBuffer
 
+# Add flush method to SoftwareZBuffer
+def flush(self):
+    """Fill the entire buffer with maximum depth values"""
+    self.memory = [(1 << self.z_size) - 1] * (self.x_res * self.y_res)
+
+SoftwareZBuffer.flush = flush
+
 @cocotb.test()
 async def test_new_z_buffer(dut):
     """
@@ -49,6 +56,7 @@ async def test_new_z_buffer(dut):
     # Counters
     mismatches = 0
     num_tests = 8000
+    flush_probability = 0.1  # 10% chance of flush between tests
 
     state_dict = {
         0: "IDLE",
@@ -85,6 +93,30 @@ async def test_new_z_buffer(dut):
         # Update the software reference model
         szbuf.mem_write(addr, pz, z_func)
 
+        # Randomly decide whether to flush before this test
+        if random.random() < flush_probability:
+            # Start flush operation
+            dut.flush_i.value = 1
+            dut.start_i.value = 1
+            await RisingEdge(dut.clk_i)
+            dut.start_i.value = 0
+            
+            # Wait for flush to complete
+            while not dut.flush_done_o.value:
+                await RisingEdge(dut.clk_i)
+            
+            # Verify flush completed correctly
+            for addr in range(x_res * y_res):
+                hw_z = mem_buf.mem_read(addr)
+                assert hw_z == (1 << z_size) - 1, f"Flush failed at address {addr}, got {hw_z} instead of max value"
+            
+            # Reset flush signal
+            dut.flush_i.value = 0
+            await RisingEdge(dut.clk_i)
+            
+            # Also flush the reference model
+            szbuf.flush()
+        
         # Start the DUT operation
         dut.start_i.value = 1
         await RisingEdge(dut.clk_i)
