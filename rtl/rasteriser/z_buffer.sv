@@ -170,10 +170,33 @@ module z_buffer #(
                 end
 
                 FLUSH: begin
-                    // loop from buffer base address 0 to end of buffer
-                    // while loop has not reached end of buffer, increment address and write 255 to buffer
-                    // for each pixel, send write request to buffer. Don't skip any pixels, wait for write to that pixel to complete.
-                    // when loop has reached end of buffer, set flush_done_o to 1
+                    // Initialize on first cycle
+                    if (curr_state != FLUSH) begin
+                        buf_addr <= buffer_base_address_i;
+                        buf_data_w <= {Z_SIZE{1'b1}}; // Maximum depth value (255 for 8-bit)
+                        data_w_valid <= 1'b1;
+                        flush_done_o <= 1'b0;
+                        buf_r_w <= 1'b0; // Write mode
+                    end
+                    
+                    // Handle write operations
+                    if (data_w_valid && data_w_ready) begin
+                        // Write completed for current address
+                        if (buf_addr < (buffer_base_address_i + X_RES * Y_RES - 1)) begin
+                            // Move to next address
+                            buf_addr <= buf_addr + 1;
+                            data_w_valid <= 1'b1; // Keep valid for next write
+                        end else begin
+                            // Reached end of buffer
+                            flush_done_o <= 1'b1;
+                            data_w_valid <= 1'b0; // Done writing
+                            buf_addr <= '0; // Reset address counter
+                        end
+                    end
+                    else if (!data_w_ready) begin
+                        // Wait for memory to be ready
+                        data_w_valid <= 1'b1; // Keep trying to write
+                    end
                 end
 
                 DONE: begin
