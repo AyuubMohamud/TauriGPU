@@ -258,7 +258,7 @@ async def test_new_z_buffer(dut):
             # Reset flush signal and wait for DUT to return to IDLE
             dut.flush_i.value = 0
             while dut.curr_state.value != 0:  # Wait until back in IDLE state
-                await RisingEdge(dut.clk_i)
+                await RisingEdge(dut.clk_i) #! This is a blocking wait - crucial for correct operation, expect the DRAM to act the same
             
             # Also flush the reference model
             szbuf.flush()
@@ -266,12 +266,12 @@ async def test_new_z_buffer(dut):
             flush_tests.append(i)  # Record this test index as a flush
             
             # Debug print flush completion
-            print(f"\nFlush completed at test {i}, total flushes: {times_of_flushes}")
-            print("MemoryBuffer after flush:")
-            for yy in range(y_res):
-                row_start = yy * x_res
-                row_values = mem_buf.memory[row_start : row_start + x_res]
-                print(f"Row {yy}: {row_values}")
+            # print(f"\nFlush completed at test {i}, total flushes: {times_of_flushes}")
+            # print("MemoryBuffer after flush:")
+            # for yy in range(y_res):
+            #     row_start = yy * x_res
+            #     row_values = mem_buf.memory[row_start : row_start + x_res]
+            #     print(f"Row {yy}: {row_values}")
 
 
     # Final test result
