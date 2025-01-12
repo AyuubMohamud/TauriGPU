@@ -93,8 +93,8 @@ async def test_new_z_buffer(dut):
         # Update the software reference model
         szbuf.mem_write(addr, pz, z_func)
 
-        # Randomly decide whether to flush before this test
-        if random.random() < flush_probability:
+        # Only flush after 10% of tests have completed
+        if i > num_tests * 0.1 and random.random() < flush_probability:
             # Start flush operation
             dut.flush_i.value = 1
             dut.start_i.value = 1
