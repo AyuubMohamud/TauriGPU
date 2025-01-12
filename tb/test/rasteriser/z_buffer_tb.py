@@ -146,7 +146,7 @@ async def test_new_z_buffer(dut):
                         row_start = yy * x_res
                         row_values = mem_buf.memory[row_start : row_start + x_res]
                         print(f"Row {yy}: {row_values}")
-                    assert False, f"Flush operation timed out after {flush_cycles} cycles"
+                    assert False, f"Flush operation timed out after {flush_cycles} cycles (total flushes so far: {i})"
             
             # Verify flush completed correctly
             for addr in range(x_res * y_res):
