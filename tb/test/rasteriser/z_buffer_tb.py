@@ -246,3 +246,4 @@ async def test_new_z_buffer(dut):
 
     # Final test result
     assert mismatches == 0, f"Test failed with {mismatches} mismatches out of {num_tests} tests."
+    print(f"Test passed successfully with {times_of_flushes} flush operations completed.")
