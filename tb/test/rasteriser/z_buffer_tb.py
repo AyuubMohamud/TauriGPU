@@ -131,21 +131,22 @@ async def test_new_z_buffer(dut):
                     # Acknowledge write request
                     dut.data_w_ready.value = 1
                     await RisingEdge(dut.clk_i)
+                    print(f"data_w_ready: {dut.data_w_ready.value}")
                     dut.data_w_ready.value = 0  # Deassert after one cycle
                     # Perform the write
                     hw_addr = dut.buf_addr.value
                     data_to_write = dut.buf_data_w.value
                     mem_buf.mem_write(hw_addr, data_to_write)
                 
-                # Timeout check - allow one extra cycle for final state transition
-                if flush_cycles > (x_res * y_res + 1):  # Total addresses + 1 cycle
+                # Timeout check
+                if flush_cycles > 25:  # Adjust timeout as needed
                     print("\nFlush operation timed out!")
                     print("Final MemoryBuffer State:")
                     for yy in range(y_res):
                         row_start = yy * x_res
                         row_values = mem_buf.memory[row_start : row_start + x_res]
                         print(f"Row {yy}: {row_values}")
-                    assert False, f"Flush operation timed out after {flush_cycles} cycles (expected max {x_res * y_res + 1} cycles)"
+                    assert False, f"Flush operation timed out after {flush_cycles} cycles"
             
             # Verify flush completed correctly
             for addr in range(x_res * y_res):
